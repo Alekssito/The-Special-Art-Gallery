@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Special Art Gallery</title>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg border-bottom sticky-top py-3">
+    <div class="container">
+      <a class="navbar-brand" href="/">
+        <i class="bi bi-palette-fill fs-3"></i>
+        <span>Special Art Gallery</span>
+      </a>
+      <button class="navbar-toggler text-white border-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <i class="bi bi-list fs-2"></i>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto align-items-center gap-2 mt-3 mt-lg-0">
+          <li class="nav-item">
+            <a class="nav-link active" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/draw.html"><i class="bi bi-brush"></i> Draw</a>
+          </li>
+          <li class="nav-item ms-lg-3">
+            <a class="nav-link" href="/login.html">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-accent rounded-pill px-4 shadow-sm text-dark mt-2 mt-lg-0" href="/register.html">Sign Up</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <main class="d-flex align-items-center py-5">
+    <div class="container">
+      <div class="row align-items-center g-5">
+        <div class="col-lg-6">
+          <h1 class="display-3 fw-bold" style="color: var(--primary-color);">Unleash Your Creativity! 🎨</h1>
+          <p class="lead mt-4 text-muted fs-4">
+            Welcome to The Special Art Gallery. Draw, create, and share your imagination with the world on an endless white canvas.
+          </p>
+          <div class="d-flex flex-wrap gap-3 mt-5">
+            <a href="/draw.html" class="btn btn-primary-custom btn-lg d-flex align-items-center gap-2 shadow">
+              <i class="bi bi-magic fs-4"></i> Start Drawing Now
+            </a>
+            <a href="/register.html" class="btn btn-secondary-custom btn-lg shadow">
+              Create an Account
+            </a>
+          </div>
+          <p class="mt-3 text-muted">
+            <small><i class="bi bi-info-circle"></i> You can draw as a Guest, but saving requires an account!</small>
+          </p>
+        </div>
+        
+        <div class="col-lg-6 text-center">
+          <div class="card card-custom p-4 bg-white" style="border: 2px dashed var(--accent-color);">
+            <div class="py-5 bg-light rounded d-flex flex-column align-items-center justify-content-center" style="min-height: 350px;">
+               <i class="bi bi-easel text-muted" style="font-size: 6rem; opacity: 0.5;"></i>
+               <h4 class="mt-3 text-muted fw-bold">Your Masterpiece Here</h4>
+               <p class="text-muted w-75">Connect with other artists, share your creations, and build your own digital gallery.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Quick Features -->
+  <section class="py-5 bg-white">
+    <div class="container py-4">
+      <div class="row g-4 text-center">
+        <div class="col-md-4">
+          <div class="p-4">
+            <div class="mb-3">
+              <i class="bi bi-brush" style="font-size: 3rem; color: var(--primary-color);"></i>
+            </div>
+            <h4 class="fw-bold">Free Drawing Tools</h4>
+            <p class="text-muted">A fully-featured digital canvas with pencils, shapes, erasers, and custom colors.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-4">
+            <div class="mb-3">
+              <i class="bi bi-images" style="font-size: 3rem; color: var(--secondary-color);"></i>
+            </div>
+            <h4 class="fw-bold">Personal Galleries</h4>
+            <p class="text-muted">Organize your sketches into private or shared galleries and show off your talent.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="p-4">
+            <div class="mb-3">
+              <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: var(--accent-color);"></i>
+            </div>
+            <h4 class="fw-bold">Upload & Edit</h4>
+            <p class="text-muted">Upload any image file, bring it to the canvas, and creatively edit it on the go.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-4 text-center text-muted border-top bg-light">
+    <div class="container">
+      <p class="mb-0">&copy; <span id="year"></span> The Special Art Gallery. Built with ❤️</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <!-- Load Main JavaScript -->
+  <script type="module" src="/src/js/main.js"></script>
+</body>
+</html>

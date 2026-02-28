@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas - The Special Art Gallery</title>
+</head>
+<body class="bg-light">
+
+  <nav class="navbar navbar-expand-lg border-bottom sticky-top py-3">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand" href="/">
+        <i class="bi bi-palette-fill fs-3"></i>
+        <span>Special Art Gallery</span>
+      </a>
+      <button class="navbar-toggler text-white border-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <i class="bi bi-list fs-2"></i>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto align-items-center gap-2 mt-3 mt-lg-0">
+          <li class="nav-item">
+            <span class="badge text-dark bg-warning rounded-pill me-3 d-flex align-items-center gap-1 p-2">
+              <i class="bi bi-person-circle"></i> Guest Mode
+            </span>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active fw-bold" href="/draw.html"><i class="bi bi-brush"></i> Canvas</a>
+          </li>
+          <li class="nav-item ms-lg-3">
+            <a class="nav-link" href="/login.html">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-accent rounded-pill px-4 shadow-sm text-dark mt-2 mt-lg-0" href="/register.html">Sign Up</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-fluid py-4 px-lg-5 flex-grow-1 d-flex flex-column">
+    <div class="drawing-container d-flex flex-column flex-grow-1">
+      
+      <!-- Toolbar -->
+      <div class="canvas-toolbar shadow-sm border">
+        
+        <!-- Tools Group -->
+        <div class="btn-group shadow-sm me-3" role="group" aria-label="Drawing Tools">
+          <input type="radio" class="btn-check" name="tools" id="toolPencil" autocomplete="off" checked>
+          <label class="btn btn-outline-secondary d-flex align-items-center gap-1" for="toolPencil" title="Pencil">
+            <i class="bi bi-pencil"></i> <span class="d-none d-md-inline">Pencil</span>
+          </label>
+
+          <input type="radio" class="btn-check" name="tools" id="toolEraser" autocomplete="off">
+          <label class="btn btn-outline-secondary d-flex align-items-center gap-1" for="toolEraser" title="Eraser">
+            <i class="bi bi-eraser"></i> <span class="d-none d-md-inline">Eraser</span>
+          </label>
+
+          <div class="btn-group" role="group">
+            <button id="btnGroupDropShapes" type="button" class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-square"></i> <span class="d-none d-md-inline">Shapes</span>
+            </button>
+            <ul class="dropdown-menu shadow" aria-labelledby="btnGroupDropShapes">
+              <li><a class="dropdown-item d-flex align-items-center gap-2" href="#" id="shapeLine"><i class="bi bi-slash-lg"></i> Line</a></li>
+              <li><a class="dropdown-item d-flex align-items-center gap-2" href="#" id="shapeRect"><i class="bi bi-square"></i> Rectangle</a></li>
+              <li><a class="dropdown-item d-flex align-items-center gap-2" href="#" id="shapeCircle"><i class="bi bi-circle"></i> Circle</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Color and Size Group -->
+        <div class="d-flex align-items-center gap-3 me-auto border-start ps-3 border-end pe-3">
+          <div class="d-flex align-items-center gap-2">
+            <label for="colorPicker" class="fw-bold text-muted mb-0"><i class="bi bi-palette"></i></label>
+            <input type="color" class="form-control form-control-color border-0 p-0 shadow-sm" id="colorPicker" value="#000000" title="Choose your color">
+          </div>
+
+          <div class="d-flex align-items-center gap-2" style="min-width: 150px;">
+            <label for="sizeSlider" class="fw-bold text-muted mb-0"><i class="bi bi-border-width"></i></label>
+            <input type="range" class="form-range" id="sizeSlider" min="1" max="50" value="5">
+            <span id="sizeValue" class="badge bg-secondary rounded-pill">5px</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button class="btn btn-outline-danger shadow-sm py-1" id="btnClear" title="Clear Canvas">
+            <i class="bi bi-trash"></i> <span class="d-none d-lg-inline">Clear</span>
+          </button>
+          
+          <label class="btn btn-outline-info shadow-sm py-1 mb-0" title="Upload Image">
+             <i class="bi bi-upload"></i> <span class="d-none d-lg-inline">Upload</span>
+             <input type="file" id="uploadImage" accept="image/*" class="d-none">
+          </label>
+          
+          <button class="btn btn-primary-custom shadow-sm py-1" id="btnDownload" title="Download Image">
+            <i class="bi bi-download"></i> <span class="d-none d-lg-inline">Download</span>
+          </button>
+          
+          <button class="btn btn-secondary-custom shadow-sm py-1" id="btnSave" title="Save to Gallery">
+            <i class="bi bi-cloud-check"></i> <span class="d-none d-lg-inline">Save</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas Area -->
+      <div class="canvas-area flex-grow-1 shadow-sm d-flex justify-content-center align-items-center overflow-hidden bg-white" id="canvasContainer">
+        <canvas id="mainCanvas"></canvas>
+      </div>
+      
+    </div>
+  </main>
+
+  <!-- Load Main JavaScript -->
+  <script type="module" src="/src/js/main.js"></script>
+  <script type="module" src="/src/js/draw.js"></script>
+</body>
+</html>

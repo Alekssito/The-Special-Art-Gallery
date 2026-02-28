@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - The Special Art Gallery</title>
+</head>
+<body class="bg-light">
+
+  <nav class="navbar navbar-expand-lg border-bottom sticky-top py-3">
+    <div class="container">
+      <a class="navbar-brand" href="/">
+        <i class="bi bi-palette-fill fs-3"></i>
+        <span>Special Art Gallery</span>
+      </a>
+      <button class="navbar-toggler text-white border-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <i class="bi bi-list fs-2"></i>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto align-items-center gap-2 mt-3 mt-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/draw.html"><i class="bi bi-brush"></i> Draw</a>
+          </li>
+          <li class="nav-item ms-lg-3">
+            <a class="nav-link active fw-bold" href="/login.html">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-accent rounded-pill px-4 shadow-sm text-dark mt-2 mt-lg-0" href="/register.html">Sign Up</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="d-flex align-items-center justify-content-center flex-grow-1" style="min-height: 80vh;">
+    <div class="container auth-wrapper">
+      <div class="card card-custom p-5">
+        <h2 class="auth-header">
+          <i class="bi bi-box-arrow-in-right d-block mb-3 fs-1"></i>
+          Welcome Back!
+        </h2>
+        <form id="loginForm">
+          <div class="mb-4">
+            <label for="email" class="form-label fw-bold text-muted">Email Address</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-envelope text-muted"></i></span>
+              <input type="email" class="form-control border-start-0 ps-0" id="email" placeholder="artist@example.com" required>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label for="password" class="form-label fw-bold text-muted">Password</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-lock text-muted"></i></span>
+              <input type="password" class="form-control border-start-0 ps-0" id="password" placeholder="••••••••" required>
+            </div>
+          </div>
+          <div class="mb-4">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="rememberMe">
+              <label class="form-check-label text-muted" for="rememberMe">Remember me</label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary-custom w-100 py-3 shadow">
+            Sign In <i class="bi bi-arrow-right-short ms-1 fs-5"></i>
+          </button>
+        </form>
+        <p class="text-center mt-4 text-muted">
+          New to the gallery? <a href="/register.html" class="fw-bold text-decoration-none" style="color: var(--primary-color);">Create an account ✨</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Load Main JavaScript -->
+  <script type="module" src="/src/js/main.js"></script>
+  <script type="module">
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      // Since functionality is out of scope right now, we just show a toast!
+      window.showToast('Login Attempt', 'Functionality coming soon! Redirecting to Home...', 'info');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+    });
+  </script>
+</body>
+</html>

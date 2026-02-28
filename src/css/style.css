@@ -1,0 +1,171 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+/* Custom Variables for a happy, bright, creative theme */
+:root {
+  --primary-color: #ff6b6b; /* Playful soft red/pink */
+  --primary-dark: #e85d5d;  
+  --secondary-color: #4ecdc4; /* Cheerful mint green */
+  --secondary-dark: #3fbdb4;
+  --accent-color: #ffe66d; /* Sunny yellow */
+  --bg-color: #f7f9f9; /* Light off-white for the background */
+  --text-dark: #2b2d42; /* Deep blue-gray for readable text */
+  --text-light: #ffffff;
+  
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --border-radius: 12px;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex-grow: 1;
+}
+
+/* Navbar overrides */
+.navbar {
+  background-color: var(--primary-color) !important;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+.navbar-brand {
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--text-light) !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-link {
+  color: var(--text-light) !important;
+  font-weight: 600;
+  margin: 0 5px;
+  transition: opacity 0.2s ease;
+}
+
+.nav-link:hover {
+  opacity: 0.8;
+}
+
+/* Custom Buttons */
+.btn-primary-custom {
+  background-color: var(--primary-color);
+  color: var(--text-light);
+  border: none;
+  font-weight: 600;
+  border-radius: var(--border-radius);
+  padding: 10px 24px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary-custom:hover {
+  background-color: var(--primary-dark);
+  color: var(--text-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
+}
+
+.btn-secondary-custom {
+  background-color: var(--secondary-color);
+  color: var(--text-light);
+  border: none;
+  font-weight: 600;
+  border-radius: var(--border-radius);
+  padding: 10px 24px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-secondary-custom:hover {
+  background-color: var(--secondary-dark);
+  color: var(--text-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(78, 205, 196, 0.4);
+}
+
+.btn-accent {
+  background-color: var(--accent-color);
+  color: var(--text-dark);
+  border: none;
+  font-weight: 700;
+  border-radius: var(--border-radius);
+  padding: 10px 24px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-accent:hover {
+  background-color: #f5dc58;
+  color: var(--text-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(255, 230, 109, 0.4);
+}
+
+/* Cards */
+.card-custom {
+  border: none;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+
+/* Toast Container */
+.toast-container {
+  z-index: 1060;
+}
+
+.custom-toast {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Drawing Canvas specific */
+.drawing-container {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 20px;
+}
+
+.canvas-toolbar {
+  background-color: var(--bg-color);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.canvas-area {
+  border: 2px dashed #e1e4e8;
+  border-radius: 8px;
+  width: 100%;
+  height: 60vh;
+  background-color: white;
+  cursor: crosshair;
+  position: relative;
+}
+
+/* Utility to center simple views */
+.auth-wrapper {
+  max-width: 450px;
+  margin: 50px auto;
+}
+
+.auth-header {
+  text-align: center;
+  color: var(--primary-color);
+  margin-bottom: 30px;
+  font-weight: bold;
+}
