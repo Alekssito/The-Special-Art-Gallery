@@ -108,6 +108,15 @@ main {
   box-shadow: 0 6px 15px rgba(255, 230, 109, 0.4);
 }
 
+.btn-accent:active,
+.btn-accent.active,
+.btn-check:checked + .btn-accent,
+.show > .btn-accent.dropdown-toggle {
+  background-color: var(--accent-color);
+  color: var(--text-dark);
+  border-color: transparent;
+}
+
 /* Cards */
 .card-custom {
   border: none;
