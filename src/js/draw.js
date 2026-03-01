@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnDownload = document.getElementById('btnDownload');
   const btnSave = document.getElementById('btnSave');
   const uploadImage = document.getElementById('uploadImage');
+  const searchParams = new URLSearchParams(window.location.search);
+  const editingDrawingId = searchParams.get('edit');
 
   let ctx = null;
 
@@ -85,13 +87,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const imageDataUrl = canvas.toDataURL('image/png');
-      const title = `Drawing ${new Date().toISOString()}`;
+      const now = new Date().toISOString();
+      const title = `Drawing ${now}`;
+
+      let storagePath = `${user.id}/${crypto.randomUUID()}.png`;
+
+      if (editingDrawingId) {
+        const { data: existingDrawing, error: existingError } = await supabase
+          .from('drawings')
+          .select('id, storage_path')
+          .eq('id', editingDrawingId)
+          .single();
+
+        if (existingError) throw existingError;
+        if (existingDrawing?.storage_path) storagePath = existingDrawing.storage_path;
+      }
+
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((result) => {
+          if (!result) {
+            reject(new Error('Could not create image blob from canvas.'));
+            return;
+          }
+          resolve(result);
+        }, 'image/png');
+      });
+
+      const { error: uploadError } = await supabase.storage
+        .from('drawings')
+        .upload(storagePath, blob, {
+          contentType: 'image/png',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      if (editingDrawingId) {
+        const { error: updateError } = await supabase
+          .from('drawings')
+          .update({
+            title,
+            storage_path: storagePath,
+            image_data: null
+          })
+          .eq('id', editingDrawingId);
+
+        if (updateError) throw updateError;
+        showToast('Updated', 'Your drawing updates have been saved.', 'success');
+        return;
+      }
 
       const { error } = await supabase.from('drawings').insert({
         user_id: user.id,
         title,
-        image_data: imageDataUrl
+        storage_path: storagePath,
+        image_data: null
       });
 
       if (error) throw error;
@@ -310,6 +360,63 @@ document.addEventListener('DOMContentLoaded', () => {
     isDrawing = false;
   };
 
+  async function loadDrawingForEditing() {
+    if (!editingDrawingId || !isSupabaseConfigured || !supabase) return;
+
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    try {
+      const { data: drawing, error: drawingError } = await supabase
+        .from('drawings')
+        .select('id, storage_path, image_data')
+        .eq('id', editingDrawingId)
+        .single();
+
+      if (drawingError) throw drawingError;
+
+      let imageSource = drawing?.image_data || null;
+
+      if (!imageSource && drawing?.storage_path) {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('drawings')
+          .createSignedUrl(drawing.storage_path, 60 * 10);
+
+        if (signedError) throw signedError;
+
+        const response = await fetch(signedData.signedUrl);
+        if (!response.ok) throw new Error('Could not fetch drawing image for editing.');
+        const blob = await response.blob();
+        imageSource = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Could not prepare drawing image.'));
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      if (!imageSource) {
+        throw new Error('Drawing image is unavailable.');
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const scale = Math.min((canvas.width - 40) / img.width, (canvas.height - 40) / img.height);
+        const x = (canvas.width / 2) - (img.width / 2) * scale;
+        const y = (canvas.height / 2) - (img.height / 2) * scale;
+
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+        showToast('Edit Mode', 'You are editing an existing drawing. Click Save to update it.', 'info');
+      };
+      img.src = imageSource;
+    } catch (error) {
+      showToast('Edit Load Failed', error.message || 'Could not load drawing for editing.', 'error');
+    }
+  }
+
   // Canvas Event Listeners
   canvas.addEventListener('mousedown', startDraw);
   canvas.addEventListener('mousemove', drawing);
@@ -320,6 +427,8 @@ document.addEventListener('DOMContentLoaded', () => {
   canvas.addEventListener('touchstart', startDraw, { passive: false });
   canvas.addEventListener('touchmove', drawing, { passive: false });
   canvas.addEventListener('touchend', stopDraw);
+
+  loadDrawingForEditing();
 
   showToast('Welcome to the Canvas!', 'You can now draw, erase, and create shapes!', 'info');
 });
