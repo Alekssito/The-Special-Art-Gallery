@@ -343,13 +343,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderDrawings() {
     const visibleDrawings = currentGalleryId
       ? drawings.filter((drawing) => drawing.gallery_id === currentGalleryId)
-      : drawings;
+      : drawings.filter((drawing) => !drawing.gallery_id);
 
     if (!visibleDrawings.length) {
       drawingsContainer.innerHTML = `
         <div class="col-12">
           <div class="alert alert-info mb-0" role="alert">
-            ${currentGalleryId ? 'This gallery is empty. Edit the gallery to add drawings.' : 'You have no saved drawings yet. Go to the canvas and click Save.'}
+            ${currentGalleryId ? 'This gallery is empty. Edit the gallery to add drawings.' : 'You have no drawings outside galleries yet. Go to the canvas and click Save.'}
           </div>
         </div>
       `;

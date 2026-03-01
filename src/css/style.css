@@ -156,6 +156,89 @@ main {
   margin-bottom: 20px;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-history-group {
+  box-shadow: var(--card-shadow);
+  border-radius: 8px;
+}
+
+.btn-toolbar-history,
+.btn-toolbar-clear,
+.btn-toolbar-upload,
+.toolbar-btn-main {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.btn-toolbar-history {
+  border: 1px solid var(--bs-border-color);
+  background: var(--text-light);
+  color: var(--text-dark);
+  padding: 6px 10px;
+}
+
+.btn-toolbar-history:hover:not(:disabled) {
+  background: var(--bg-color);
+  color: var(--text-dark);
+}
+
+.btn-toolbar-history:disabled {
+  opacity: 0.65;
+}
+
+.btn-toolbar-clear {
+  border: 1px solid var(--primary-color);
+  color: var(--primary-dark);
+  background: var(--text-light);
+  padding: 6px 12px;
+}
+
+.btn-toolbar-clear:hover {
+  border-color: var(--primary-dark);
+  background: var(--bg-color);
+  color: var(--primary-dark);
+}
+
+.btn-toolbar-upload {
+  border: 1px solid var(--secondary-color);
+  color: var(--secondary-dark);
+  background: var(--text-light);
+  padding: 6px 12px;
+}
+
+.btn-toolbar-upload:hover {
+  border-color: var(--secondary-dark);
+  background: var(--bg-color);
+  color: var(--secondary-dark);
+}
+
+.toolbar-btn-main {
+  padding: 6px 14px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 30px;
+  background: var(--bs-border-color);
+  margin: 0 2px;
+}
+
+@media (max-width: 992px) {
+  .toolbar-actions {
+    width: 100%;
+  }
+}
+
 .canvas-area {
   border: 2px dashed #e1e4e8;
   border-radius: 8px;
