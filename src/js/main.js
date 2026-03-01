@@ -70,7 +70,7 @@ async function handleNavbarAuthState() {
   if (!navbar) return;
 
   const loginLink = navbar.querySelector('a[href="/login.html"]');
-  const registerLinks = navbar.querySelectorAll('a[href="/register.html"]');
+  const accountLinks = document.querySelectorAll('a[href="/register.html"]');
   const guestBadge = navbar.querySelector('.badge');
 
   const user = await getCurrentUser();
@@ -100,12 +100,31 @@ async function handleNavbarAuthState() {
     });
   }
 
-  registerLinks.forEach((link) => link.classList.add('d-none'));
+  accountLinks.forEach((link) => {
+    link.setAttribute('href', '/profile.html');
+    const label = link.textContent?.trim().toLowerCase() || '';
+    if (label.includes('sign up') || label.includes('create an account')) {
+      link.textContent = 'My Profile';
+    }
+  });
 
   if (guestBadge) {
     guestBadge.classList.remove('bg-warning');
     guestBadge.classList.add('bg-success');
-    guestBadge.innerHTML = `<i class="bi bi-person-check"></i> ${user.email}`;
+    guestBadge.innerHTML = '<i class="bi bi-person-check"></i> User Mode';
+    guestBadge.style.cursor = 'pointer';
+    guestBadge.setAttribute('title', 'Go to profile');
+    guestBadge.setAttribute('role', 'link');
+    guestBadge.setAttribute('tabindex', '0');
+    guestBadge.addEventListener('click', () => {
+      window.location.href = '/profile.html';
+    });
+    guestBadge.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        window.location.href = '/profile.html';
+      }
+    });
   }
 }
 

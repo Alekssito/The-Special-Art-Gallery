@@ -178,3 +178,9 @@ main {
   margin-bottom: 30px;
   font-weight: bold;
 }
+
+.profile-drawing-image {
+  height: 220px;
+  object-fit: contain;
+  background: #ffffff;
+}
