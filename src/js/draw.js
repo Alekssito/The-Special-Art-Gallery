@@ -2,6 +2,7 @@
 import { showToast } from './main.js';
 import { getCurrentUser } from './auth.js';
 import { isSupabaseConfigured, supabase } from './supabaseClient.js';
+import * as bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
@@ -16,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnDownload = document.getElementById('btnDownload');
   const btnSave = document.getElementById('btnSave');
   const uploadImage = document.getElementById('uploadImage');
+  const saveGalleryChoiceModalElement = document.getElementById('saveGalleryChoiceModal');
+  const saveGallerySelect = document.getElementById('saveGallerySelect');
+  const btnConfirmSaveChoice = document.getElementById('btnConfirmSaveChoice');
   const searchParams = new URLSearchParams(window.location.search);
   const editingDrawingId = searchParams.get('edit');
 
@@ -95,6 +99,48 @@ document.addEventListener('DOMContentLoaded', () => {
   // Optional: re-init on resize, but that might clear the drawing. 
   // We'll leave it as is for UI stage.
 
+  const saveGalleryChoiceModal = saveGalleryChoiceModalElement
+    ? bootstrap.Modal.getOrCreateInstance(saveGalleryChoiceModalElement)
+    : null;
+
+  const promptGallerySaveChoice = (galleries, preselectedGalleryId = null) => {
+    if (!saveGalleryChoiceModal || !saveGallerySelect || !btnConfirmSaveChoice) {
+      return Promise.resolve(preselectedGalleryId || null);
+    }
+
+    const hasPreselectedGallery = preselectedGalleryId
+      && galleries.some((gallery) => gallery.id === preselectedGalleryId);
+
+    saveGallerySelect.innerHTML = [
+      '<option value="">Save without gallery</option>',
+      ...galleries.map((gallery) => `<option value="${gallery.id}">${gallery.name}</option>`)
+    ].join('');
+    saveGallerySelect.value = hasPreselectedGallery ? preselectedGalleryId : '';
+
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        btnConfirmSaveChoice.removeEventListener('click', handleConfirm);
+        saveGalleryChoiceModalElement.removeEventListener('hidden.bs.modal', handleDismiss);
+      };
+
+      const handleConfirm = () => {
+        const selectedGalleryId = saveGallerySelect.value || null;
+        cleanup();
+        saveGalleryChoiceModal.hide();
+        resolve(selectedGalleryId);
+      };
+
+      const handleDismiss = () => {
+        cleanup();
+        resolve(undefined);
+      };
+
+      btnConfirmSaveChoice.addEventListener('click', handleConfirm);
+      saveGalleryChoiceModalElement.addEventListener('hidden.bs.modal', handleDismiss);
+      saveGalleryChoiceModal.show();
+    });
+  };
+
   // 1. Thickness slider UI update
   sizeSlider.addEventListener('input', (e) => {
     sizeValue.textContent = `${e.target.value}px`;
@@ -158,16 +204,34 @@ document.addEventListener('DOMContentLoaded', () => {
       const title = `Drawing ${now}`;
 
       let storagePath = `${user.id}/${crypto.randomUUID()}.png`;
+      let currentGalleryId = null;
 
       if (editingDrawingId) {
         const { data: existingDrawing, error: existingError } = await supabase
           .from('drawings')
-          .select('id, storage_path')
+          .select('id, storage_path, gallery_id')
           .eq('id', editingDrawingId)
           .single();
 
         if (existingError) throw existingError;
         if (existingDrawing?.storage_path) storagePath = existingDrawing.storage_path;
+        currentGalleryId = existingDrawing?.gallery_id || null;
+      }
+
+      const { data: galleries, error: galleriesError } = await supabase
+        .from('galleries')
+        .select('id, name')
+        .order('name', { ascending: true });
+
+      if (galleriesError) throw galleriesError;
+
+      let selectedGalleryId = currentGalleryId;
+      if ((galleries || []).length > 0) {
+        const saveChoice = await promptGallerySaveChoice(galleries, currentGalleryId);
+        if (saveChoice === undefined) {
+          return;
+        }
+        selectedGalleryId = saveChoice;
       }
 
       const blob = await new Promise((resolve, reject) => {
@@ -195,7 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
           .update({
             title,
             storage_path: storagePath,
-            image_data: null
+            image_data: null,
+            gallery_id: selectedGalleryId
           })
           .eq('id', editingDrawingId);
 
@@ -208,7 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
         user_id: user.id,
         title,
         storage_path: storagePath,
-        image_data: null
+        image_data: null,
+        gallery_id: selectedGalleryId
       });
 
       if (error) throw error;
