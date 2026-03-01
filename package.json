@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.53.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "vite": "^7.3.1"

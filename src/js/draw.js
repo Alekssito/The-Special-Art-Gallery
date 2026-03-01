@@ -1,5 +1,7 @@
 // Initialize drawing page interactions
 import { showToast } from './main.js';
+import { getCurrentUser } from './auth.js';
+import { isSupabaseConfigured, supabase } from './supabaseClient.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements
@@ -65,13 +67,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 4. Save Button (Requires Account - Guest behavior)
-  btnSave.addEventListener('click', () => {
-    showToast(
-      'Account Required', 
-      'Creating galleries and saving drawings to the cloud requires an account. <a href="/register.html" class="fw-bold text-decoration-underline" style="color: inherit;">Sign up here</a>!', 
-      'info'
-    );
+  // 4. Save Button (Authenticated users only)
+  btnSave.addEventListener('click', async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      showToast('Supabase Not Configured', 'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY first.', 'error');
+      return;
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+      showToast(
+        'Account Required',
+        'Log in to save drawings to your account. <a href="/login.html" class="fw-bold text-decoration-underline" style="color: inherit;">Go to login</a>.',
+        'info'
+      );
+      return;
+    }
+
+    try {
+      const imageDataUrl = canvas.toDataURL('image/png');
+      const title = `Drawing ${new Date().toISOString()}`;
+
+      const { error } = await supabase.from('drawings').insert({
+        user_id: user.id,
+        title,
+        image_data: imageDataUrl
+      });
+
+      if (error) throw error;
+      showToast('Saved', 'Your drawing has been saved to your account.', 'success');
+    } catch (error) {
+      showToast('Save Failed', error.message || 'Could not save drawing.', 'error');
+    }
   });
 
   // 5. Upload Image

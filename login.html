@@ -77,15 +77,5 @@
 
   <!-- Load Main JavaScript -->
   <script type="module" src="/src/js/main.js"></script>
-  <script type="module">
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      // Since functionality is out of scope right now, we just show a toast!
-      window.showToast('Login Attempt', 'Functionality coming soon! Redirecting to Home...', 'info');
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 2000);
-    });
-  </script>
 </body>
 </html>

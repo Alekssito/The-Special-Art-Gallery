@@ -86,15 +86,5 @@
 
   <!-- Load Main JavaScript -->
   <script type="module" src="/src/js/main.js"></script>
-  <script type="module">
-    document.getElementById('registerForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      // Only UI, no functionality needed
-      window.showToast('Registration Attempt', 'Auth functionalities not yet implemented. Creating mock profile...', 'success');
-      setTimeout(() => {
-        window.location.href = '/login.html';
-      }, 2500);
-    });
-  </script>
 </body>
 </html>
