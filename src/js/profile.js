@@ -5,6 +5,7 @@ import { isSupabaseConfigured, supabase } from './supabaseClient.js';
 document.addEventListener('DOMContentLoaded', async () => {
   const subtitle = document.getElementById('profileSubtitle');
   const drawingsContainer = document.getElementById('profileDrawings');
+  const profileUsername = document.getElementById('profileUsername');
 
   if (!subtitle || !drawingsContainer) return;
 
@@ -20,6 +21,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.location.href = '/login.html';
     }, 900);
     return;
+  }
+
+  const usernameFromMetadata = user.user_metadata?.username?.trim();
+  const emailPrefix = user.email ? user.email.split('@')[0] : 'artist';
+  const displayUsername = usernameFromMetadata || emailPrefix;
+
+  if (profileUsername) {
+    profileUsername.textContent = `• ${displayUsername}`;
   }
 
   subtitle.textContent = `${user.email} • Your saved drawings`;

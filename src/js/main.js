@@ -1,7 +1,7 @@
 import * as bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import '../css/style.css';
 import { getCurrentUser, signInWithEmail, signOut, signUpWithEmail } from './auth.js';
-import { isSupabaseConfigured } from './supabaseClient.js';
+import { getRememberMePreference, isSupabaseConfigured, setRememberMePreference } from './supabaseClient.js';
 
 /**
  * Utility function to show Toast notifications dynamically
@@ -109,9 +109,13 @@ async function handleNavbarAuthState() {
   });
 
   if (guestBadge) {
+    const usernameFromMetadata = user.user_metadata?.username?.trim();
+    const emailPrefix = user.email ? user.email.split('@')[0] : 'artist';
+    const displayUsername = usernameFromMetadata || emailPrefix;
+
     guestBadge.classList.remove('bg-warning');
     guestBadge.classList.add('bg-success');
-    guestBadge.innerHTML = '<i class="bi bi-person-check"></i> User Mode';
+    guestBadge.innerHTML = `<i class="bi bi-person-check"></i> User Mode • ${displayUsername}`;
     guestBadge.style.cursor = 'pointer';
     guestBadge.setAttribute('title', 'Go to profile');
     guestBadge.setAttribute('role', 'link');
@@ -132,6 +136,11 @@ function handleLoginForm() {
   const loginForm = document.getElementById('loginForm');
   if (!loginForm) return;
 
+  const rememberMeCheckbox = document.getElementById('rememberMe');
+  if (rememberMeCheckbox) {
+    rememberMeCheckbox.checked = getRememberMePreference();
+  }
+
   loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -142,8 +151,10 @@ function handleLoginForm() {
 
     const email = document.getElementById('email')?.value?.trim();
     const password = document.getElementById('password')?.value || '';
+    const rememberMe = document.getElementById('rememberMe')?.checked ?? true;
 
     try {
+      setRememberMePreference(rememberMe);
       await signInWithEmail({ email, password });
       showToast('Login Successful', 'Welcome back! Redirecting to canvas...', 'success');
       setTimeout(() => {
