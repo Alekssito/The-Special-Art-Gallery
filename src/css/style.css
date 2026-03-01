@@ -184,3 +184,26 @@ main {
   object-fit: contain;
   background: #ffffff;
 }
+
+.gallery-selection-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.gallery-drawing-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.gallery-drawing-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #ececec;
+  background: #ffffff;
+}
