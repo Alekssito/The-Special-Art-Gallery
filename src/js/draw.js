@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const sizeSlider = document.getElementById('sizeSlider');
   const sizeValue = document.getElementById('sizeValue');
   const colorPicker = document.getElementById('colorPicker');
+  const btnUndo = document.getElementById('btnUndo');
+  const btnRedo = document.getElementById('btnRedo');
   const btnClear = document.getElementById('btnClear');
   const btnDownload = document.getElementById('btnDownload');
   const btnSave = document.getElementById('btnSave');
@@ -18,6 +20,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const editingDrawingId = searchParams.get('edit');
 
   let ctx = null;
+  const undoStack = [];
+  const redoStack = [];
+  const maxHistoryStates = 30;
+
+  const getCanvasState = () => canvas.toDataURL('image/png');
+
+  const updateHistoryButtons = () => {
+    if (btnUndo) btnUndo.disabled = undoStack.length <= 1;
+    if (btnRedo) btnRedo.disabled = redoStack.length === 0;
+  };
+
+  const restoreCanvasState = (state) => {
+    if (!state || !ctx) return;
+    const image = new Image();
+    image.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    };
+    image.src = state;
+  };
+
+  const pushCanvasState = () => {
+    if (!ctx) return;
+    const currentState = getCanvasState();
+    const lastState = undoStack[undoStack.length - 1];
+    if (currentState !== lastState) {
+      undoStack.push(currentState);
+      if (undoStack.length > maxHistoryStates) {
+        undoStack.shift();
+      }
+      redoStack.length = 0;
+      updateHistoryButtons();
+    }
+  };
+
+  const undoCanvas = () => {
+    if (undoStack.length <= 1) return;
+    const currentState = undoStack.pop();
+    redoStack.push(currentState);
+    const previousState = undoStack[undoStack.length - 1];
+    restoreCanvasState(previousState);
+    updateHistoryButtons();
+  };
+
+  const redoCanvas = () => {
+    if (redoStack.length === 0) return;
+    const nextState = redoStack.pop();
+    undoStack.push(nextState);
+    restoreCanvasState(nextState);
+    updateHistoryButtons();
+  };
 
   // Setup Canvas
   function initCanvas() {
@@ -31,6 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fill with white background initially
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    undoStack.length = 0;
+    redoStack.length = 0;
+    undoStack.push(getCanvasState());
+    updateHistoryButtons();
   }
 
   initCanvas();
@@ -47,9 +105,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ctx) {
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      pushCanvasState();
       showToast('Canvas Cleared', 'Your canvas has been reset.', 'success');
     }
   });
+
+  if (btnUndo) {
+    btnUndo.addEventListener('click', undoCanvas);
+  }
+
+  if (btnRedo) {
+    btnRedo.addEventListener('click', redoCanvas);
+  }
 
   // 3. Download Button
   btnDownload.addEventListener('click', () => {
@@ -170,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const y = (canvas.height / 2) - (img.height / 2) * scale;
           
           ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+          pushCanvasState();
           showToast('Image Uploaded', 'Your image is ready to be edited!', 'success');
         };
         img.src = event.target.result;
@@ -357,6 +425,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const stopDraw = () => {
+    if (isDrawing) {
+      pushCanvasState();
+    }
     isDrawing = false;
   };
 
@@ -409,6 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const y = (canvas.height / 2) - (img.height / 2) * scale;
 
         ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+        pushCanvasState();
         showToast('Edit Mode', 'You are editing an existing drawing. Click Save to update it.', 'info');
       };
       img.src = imageSource;
