@@ -221,6 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const { data: galleries, error: galleriesError } = await supabase
         .from('galleries')
         .select('id, name')
+        .eq('user_id', user.id)
         .order('name', { ascending: true });
 
       if (galleriesError) throw galleriesError;

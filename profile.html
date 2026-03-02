@@ -58,6 +58,37 @@
         </div>
       </div>
 
+      <div class="card border-0 bg-light mb-4">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <div>
+              <h2 class="h6 fw-bold mb-1" style="color: var(--primary-color);">
+                <i class="bi bi-shield-lock me-2"></i>Profile Discoverability
+              </h2>
+              <p class="text-muted small mb-0">On by default. When off, your username will not appear in search results.</p>
+            </div>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" id="privacyToggle">
+              <label class="form-check-label" for="privacyToggle">Appear in user search</label>
+            </div>
+          </div>
+
+          <div>
+            <label for="shareUserSearch" class="form-label fw-semibold mb-2">
+              <i class="bi bi-search me-1"></i>Search users to share galleries
+            </label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="shareUserSearch" maxlength="50" placeholder="Type a username...">
+              <button class="btn btn-primary-custom" type="button" id="btnSearchUsers">
+                <i class="bi bi-search me-1"></i> Search
+              </button>
+            </div>
+            <div class="form-text">Only users with discoverability turned on appear here.</div>
+            <div id="shareSearchResults" class="mt-3 row g-2"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="galleriesSection" class="mb-5">
         <h2 class="h5 fw-bold mb-3" style="color: var(--primary-color);">
           <i class="bi bi-collection me-2"></i>My Galleries
@@ -115,6 +146,28 @@
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-outline-danger" id="btnConfirmDeleteGallery">
             <i class="bi bi-trash me-1"></i> Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="shareGalleryModal" tabindex="-1" aria-labelledby="shareGalleryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="shareGalleryModalLabel">Share Galleries</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="shareTargetUserId">
+          <p class="text-muted mb-3">Choose which of your galleries should be shared with <span class="fw-bold" id="shareTargetUsername"></span>.</p>
+          <div id="shareGallerySelection" class="gallery-selection-list border rounded p-3 bg-light"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary-custom" id="btnSaveShareSelection">
+            <i class="bi bi-share me-1"></i> Save Sharing
           </button>
         </div>
       </div>

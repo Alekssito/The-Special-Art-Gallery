@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const drawingsContainer = document.getElementById('profileDrawings');
   const profileUsername = document.getElementById('profileUsername');
   const profileTitleText = document.getElementById('profileTitleText');
+  const privacyToggle = document.getElementById('privacyToggle');
+  const shareUserSearch = document.getElementById('shareUserSearch');
+  const searchUsersButton = document.getElementById('btnSearchUsers');
+  const shareSearchResults = document.getElementById('shareSearchResults');
   const galleriesContainer = document.getElementById('profileGalleries');
   const galleriesSection = document.getElementById('galleriesSection');
   const createGalleryButton = document.getElementById('btnCreateGallery');
@@ -20,12 +24,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saveGalleryButton = document.getElementById('btnSaveGallery');
   const deleteGalleryModalElement = document.getElementById('deleteGalleryModal');
   const confirmDeleteGalleryButton = document.getElementById('btnConfirmDeleteGallery');
+  const shareGalleryModalElement = document.getElementById('shareGalleryModal');
+  const shareTargetUserId = document.getElementById('shareTargetUserId');
+  const shareTargetUsername = document.getElementById('shareTargetUsername');
+  const shareGallerySelection = document.getElementById('shareGallerySelection');
+  const saveShareSelectionButton = document.getElementById('btnSaveShareSelection');
 
   let galleryModal = null;
   let deleteGalleryModal = null;
+  let shareGalleryModal = null;
   let currentUser = null;
+  let currentProfile = null;
   let drawings = [];
   let galleries = [];
+  let ownedGalleries = [];
+  let userSearchItems = [];
   const imageSrcCache = new Map();
   const searchParams = new URLSearchParams(window.location.search);
   const currentGalleryId = searchParams.get('gallery');
@@ -60,12 +73,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     deleteGalleryModal = bootstrap.Modal.getOrCreateInstance(deleteGalleryModalElement);
   }
 
-  const usernameFromMetadata = currentUser.user_metadata?.username?.trim();
-  const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : 'artist';
-  const displayUsername = usernameFromMetadata || emailPrefix;
+  if (shareGalleryModalElement) {
+    shareGalleryModal = bootstrap.Modal.getOrCreateInstance(shareGalleryModalElement);
+  }
 
-  if (profileUsername) {
-    profileUsername.textContent = `• ${displayUsername}`;
+  function getFallbackUsername() {
+    const usernameFromMetadata = currentUser.user_metadata?.username?.trim();
+    const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : 'artist';
+    return usernameFromMetadata || emailPrefix;
+  }
+
+  async function loadCurrentProfile() {
+    const fallbackUsername = getFallbackUsername();
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('user_id, username, searchable')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (data) {
+      currentProfile = data;
+    } else {
+      const { data: insertedProfile, error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: currentUser.id,
+          username: fallbackUsername,
+          searchable: true
+        }, { onConflict: 'user_id' })
+        .select('user_id, username, searchable')
+        .single();
+
+      if (upsertError) throw upsertError;
+      currentProfile = insertedProfile;
+    }
+
+    if (privacyToggle) {
+      privacyToggle.checked = currentProfile.searchable !== false;
+    }
+  }
+
+  function setProfileHeader() {
+    const displayUsername = currentProfile?.username?.trim() || getFallbackUsername();
+    if (profileUsername) {
+      profileUsername.textContent = `• ${displayUsername}`;
+    }
+  }
+
+  function getSelectedGallery() {
+    if (!currentGalleryId) return null;
+    return galleries.find((gallery) => gallery.id === currentGalleryId) || null;
   }
 
   async function resolveImageSrc(drawing) {
@@ -89,18 +148,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function getDefaultGalleryName() {
-    return `Gallery ${galleries.length + 1}`;
+    return `Gallery ${ownedGalleries.length + 1}`;
   }
 
   function buildGallerySelectionOptions(selectedDrawingIds = []) {
     if (!galleryDrawingSelection) return;
 
-    if (!drawings.length) {
+    const ownDrawings = drawings.filter((drawing) => drawing.user_id === currentUser.id);
+
+    if (!ownDrawings.length) {
       galleryDrawingSelection.innerHTML = '<p class="text-muted mb-0">No drawings available yet.</p>';
       return;
     }
 
-    galleryDrawingSelection.innerHTML = drawings.map((drawing) => {
+    galleryDrawingSelection.innerHTML = ownDrawings.map((drawing) => {
       const isChecked = selectedDrawingIds.includes(drawing.id);
       return `
         <label class="gallery-drawing-option mb-2 w-100">
@@ -125,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!galleryModal || !galleryId) return;
 
     const gallery = galleries.find((item) => item.id === galleryId);
-    if (!gallery) return;
+    if (!gallery || gallery.user_id !== currentUser.id) return;
 
     if (galleryModalTitle) galleryModalTitle.textContent = 'Edit Gallery';
     if (galleryIdInput) galleryIdInput.value = galleryId;
@@ -141,11 +202,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const [{ data: drawingsData, error: drawingsError }, { data: galleriesData, error: galleriesError }] = await Promise.all([
       supabase
         .from('drawings')
-        .select('id, title, image_data, storage_path, created_at, gallery_id')
+        .select('id, user_id, title, image_data, storage_path, created_at, gallery_id')
         .order('created_at', { ascending: false }),
       supabase
         .from('galleries')
-        .select('id, name, created_at')
+        .select('id, user_id, name, created_at')
         .order('created_at', { ascending: true })
     ]);
 
@@ -160,6 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
 
     galleries = galleriesData || [];
+    ownedGalleries = galleries.filter((gallery) => gallery.user_id === currentUser.id);
   }
 
   async function saveGallery() {
@@ -192,6 +254,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (insertError) throw insertError;
         galleryId = newGallery.id;
       } else {
+        const editedGallery = galleries.find((gallery) => gallery.id === galleryId);
+        if (!editedGallery || editedGallery.user_id !== currentUser.id) {
+          throw new Error('You can only edit your own galleries.');
+        }
+
         if (!galleryName) {
           const currentGallery = galleries.find((item) => item.id === galleryId);
           galleryName = currentGallery?.name || getDefaultGalleryName();
@@ -260,6 +327,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function deleteGallery(galleryId) {
+    const targetGallery = galleries.find((gallery) => gallery.id === galleryId);
+    if (!targetGallery || targetGallery.user_id !== currentUser.id) {
+      showToast('Access Denied', 'You can only delete your own galleries.', 'error');
+      return;
+    }
+
     const confirmed = await confirmGalleryDelete();
     if (!confirmed) return;
 
@@ -300,23 +373,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     galleriesContainer.innerHTML = galleries.map((gallery) => {
+      const isSharedGallery = gallery.user_id !== currentUser.id;
       const drawingsCount = drawings.filter((drawing) => drawing.gallery_id === gallery.id).length;
       return `
         <div class="col-12 col-md-6 col-xl-4">
           <div class="card card-custom h-100">
             <div class="card-body d-flex flex-column">
-              <h3 class="h6 fw-bold mb-2"><i class="bi bi-folder2-open me-2"></i>${gallery.name}</h3>
+              <h3 class="h6 fw-bold mb-2">
+                <i class="bi bi-folder2-open me-2"></i>${gallery.name}
+                ${isSharedGallery ? '<span class="badge bg-info-subtle text-info-emphasis ms-2">Shared</span>' : ''}
+              </h3>
               <p class="text-muted small mb-3">${drawingsCount} drawing${drawingsCount === 1 ? '' : 's'}</p>
               <div class="mt-auto d-flex gap-2 flex-wrap">
                 <a class="btn btn-sm btn-primary-custom flex-grow-1" href="/profile.html?gallery=${gallery.id}">
                   <i class="bi bi-box-arrow-in-right me-1"></i> Enter
                 </a>
+                ${isSharedGallery ? `
+                <button class="btn btn-sm btn-outline-secondary flex-grow-1" disabled>
+                  <i class="bi bi-eye me-1"></i> View Only
+                </button>
+                ` : `
                 <button class="btn btn-sm btn-outline-secondary flex-grow-1 btn-edit-gallery" data-gallery-id="${gallery.id}">
                   <i class="bi bi-pencil me-1"></i> Edit
                 </button>
                 <button class="btn btn-sm btn-outline-danger flex-grow-1 btn-delete-gallery" data-gallery-id="${gallery.id}">
                   <i class="bi bi-trash me-1"></i> Delete
                 </button>
+                `}
               </div>
             </div>
           </div>
@@ -341,6 +424,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function renderDrawings() {
+    const selectedGallery = getSelectedGallery();
+    const isSharedGalleryView = selectedGallery && selectedGallery.user_id !== currentUser.id;
     const visibleDrawings = currentGalleryId
       ? drawings.filter((drawing) => drawing.gallery_id === currentGalleryId)
       : drawings.filter((drawing) => !drawing.gallery_id);
@@ -349,7 +434,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       drawingsContainer.innerHTML = `
         <div class="col-12">
           <div class="alert alert-info mb-0" role="alert">
-            ${currentGalleryId ? 'This gallery is empty. Edit the gallery to add drawings.' : 'You have no drawings outside galleries yet. Go to the canvas and click Save.'}
+            ${currentGalleryId
+              ? (isSharedGalleryView
+                ? 'This shared gallery is empty.'
+                : 'This gallery is empty. Edit the gallery to add drawings.')
+              : 'You have no drawings outside galleries yet. Go to the canvas and click Save.'}
           </div>
         </div>
       `;
@@ -359,6 +448,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     drawingsContainer.innerHTML = visibleDrawings
       .map((drawing) => {
         const createdAt = new Date(drawing.created_at).toLocaleString();
+        const isOwnDrawing = drawing.user_id === currentUser.id;
+        const canManageDrawing = isOwnDrawing && !isSharedGalleryView;
         return `
           <div class="col-12 col-md-6 col-xl-4">
             <div class="card h-100 card-custom">
@@ -369,12 +460,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                   <a href="${drawing.imageSrc}" download="drawing-${drawing.id}.png" class="btn btn-sm btn-secondary-custom flex-grow-1">
                     <i class="bi bi-download me-1"></i> Download
                   </a>
+                  ${canManageDrawing ? `
                   <a href="/draw.html?edit=${drawing.id}" class="btn btn-sm btn-primary-custom flex-grow-1">
                     <i class="bi bi-pencil-square me-1"></i> Edit
                   </a>
                   <button class="btn btn-sm btn-outline-danger flex-grow-1 btn-delete-drawing" data-id="${drawing.id}" data-storage-path="${drawing.storage_path || ''}">
                     <i class="bi bi-trash me-1"></i> Delete
                   </button>
+                  ` : `
+                  <button class="btn btn-sm btn-outline-secondary flex-grow-1" disabled>
+                    <i class="bi bi-eye me-1"></i> Shared • View Only
+                  </button>
+                  `}
                 </div>
               </div>
             </div>
@@ -419,8 +516,208 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  function renderUserSearchResults() {
+    if (!shareSearchResults) return;
+
+    if (!ownedGalleries.length) {
+      shareSearchResults.innerHTML = `
+        <div class="col-12">
+          <div class="alert alert-info mb-0" role="alert">
+            Create at least one gallery to share with other users.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (!userSearchItems.length) {
+      shareSearchResults.innerHTML = `
+        <div class="col-12">
+          <p class="text-muted small mb-0">Search by username to find users and share your galleries.</p>
+        </div>
+      `;
+      return;
+    }
+
+    shareSearchResults.innerHTML = userSearchItems.map((item) => `
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="card h-100 card-custom">
+          <div class="card-body d-flex flex-column">
+            <h3 class="h6 fw-bold mb-3"><i class="bi bi-person me-2"></i>${item.username}</h3>
+            <button type="button" class="btn btn-sm btn-primary-custom mt-auto btn-open-share-modal" data-user-id="${item.user_id}" data-username="${item.username}">
+              <i class="bi bi-share me-1"></i> Share Galleries
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    shareSearchResults.querySelectorAll('.btn-open-share-modal').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const targetUserId = button.getAttribute('data-user-id');
+        const targetUsername = button.getAttribute('data-username') || 'user';
+        if (!targetUserId) return;
+        await openShareModal(targetUserId, targetUsername);
+      });
+    });
+  }
+
+  async function runUserSearch() {
+    const rawTerm = shareUserSearch?.value?.trim() || '';
+
+    if (rawTerm.length < 2) {
+      userSearchItems = [];
+      renderUserSearchResults();
+      showToast('Search', 'Type at least 2 characters to search users.', 'info');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_id, username')
+        .ilike('username', `%${rawTerm}%`)
+        .neq('user_id', currentUser.id)
+        .eq('searchable', true)
+        .order('username', { ascending: true })
+        .limit(12);
+
+      if (error) throw error;
+
+      userSearchItems = data || [];
+      if (!userSearchItems.length) {
+        shareSearchResults.innerHTML = `
+          <div class="col-12">
+            <div class="alert alert-warning mb-0" role="alert">No visible users found for that username.</div>
+          </div>
+        `;
+        return;
+      }
+
+      renderUserSearchResults();
+    } catch (error) {
+      showToast('Search Failed', error.message || 'Could not search users.', 'error');
+    }
+  }
+
+  async function openShareModal(targetUserId, targetUsernameValue) {
+    if (!shareGalleryModal || !shareTargetUserId || !shareTargetUsername || !shareGallerySelection) return;
+
+    if (!ownedGalleries.length) {
+      showToast('No Galleries', 'Create a gallery before sharing.', 'info');
+      return;
+    }
+
+    shareTargetUserId.value = targetUserId;
+    shareTargetUsername.textContent = targetUsernameValue;
+
+    const { data: existingShares, error } = await supabase
+      .from('gallery_shares')
+      .select('gallery_id')
+      .eq('owner_user_id', currentUser.id)
+      .eq('shared_with_user_id', targetUserId);
+
+    if (error) {
+      showToast('Share Failed', error.message || 'Could not load current share settings.', 'error');
+      return;
+    }
+
+    const sharedGalleryIds = new Set((existingShares || []).map((item) => item.gallery_id));
+
+    shareGallerySelection.innerHTML = ownedGalleries.map((gallery) => {
+      const isChecked = sharedGalleryIds.has(gallery.id);
+      return `
+        <label class="gallery-drawing-option mb-2 w-100">
+          <input class="form-check-input mt-0" type="checkbox" value="${gallery.id}" ${isChecked ? 'checked' : ''}>
+          <span class="fw-semibold">${gallery.name}</span>
+        </label>
+      `;
+    }).join('');
+
+    shareGalleryModal.show();
+  }
+
+  async function saveShareSelection() {
+    const targetUserId = shareTargetUserId?.value?.trim() || '';
+    if (!targetUserId || !shareGallerySelection) return;
+
+    const selectedGalleryIds = Array.from(
+      shareGallerySelection.querySelectorAll('input[type="checkbox"]:checked')
+    ).map((checkbox) => checkbox.value);
+
+    const ownedGalleryIds = ownedGalleries.map((gallery) => gallery.id);
+    const galleryIdsToRemove = ownedGalleryIds.filter((id) => !selectedGalleryIds.includes(id));
+
+    try {
+      if (galleryIdsToRemove.length) {
+        const { error: deleteError } = await supabase
+          .from('gallery_shares')
+          .delete()
+          .eq('owner_user_id', currentUser.id)
+          .eq('shared_with_user_id', targetUserId)
+          .in('gallery_id', galleryIdsToRemove);
+
+        if (deleteError) throw deleteError;
+      }
+
+      if (selectedGalleryIds.length) {
+        const payload = selectedGalleryIds.map((galleryId) => ({
+          gallery_id: galleryId,
+          owner_user_id: currentUser.id,
+          shared_with_user_id: targetUserId
+        }));
+
+        const { error: upsertError } = await supabase
+          .from('gallery_shares')
+          .upsert(payload, { onConflict: 'gallery_id,shared_with_user_id' });
+
+        if (upsertError) throw upsertError;
+      }
+
+      shareGalleryModal?.hide();
+      showToast('Sharing Updated', 'Gallery sharing settings were saved.', 'success');
+      await loadData();
+      renderPage();
+    } catch (error) {
+      showToast('Share Save Failed', error.message || 'Could not save share settings.', 'error');
+    }
+  }
+
+  async function updatePrivacySetting() {
+    if (!privacyToggle) return;
+
+    const nextValue = privacyToggle.checked;
+    const previousValue = currentProfile?.searchable !== false;
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ searchable: nextValue })
+        .eq('user_id', currentUser.id);
+
+      if (error) throw error;
+
+      currentProfile = {
+        ...currentProfile,
+        searchable: nextValue
+      };
+
+      showToast(
+        'Privacy Updated',
+        nextValue
+          ? 'Your profile is now visible in username search.'
+          : 'Your profile is now hidden from username search.',
+        'success'
+      );
+    } catch (error) {
+      privacyToggle.checked = previousValue;
+      showToast('Privacy Update Failed', error.message || 'Could not update privacy setting.', 'error');
+    }
+  }
+
   function renderPage() {
-    const selectedGallery = currentGalleryId ? galleries.find((gallery) => gallery.id === currentGalleryId) : null;
+    const selectedGallery = getSelectedGallery();
+    const isSharedGalleryView = selectedGallery && selectedGallery.user_id !== currentUser.id;
 
     if (currentGalleryId && !selectedGallery) {
       showToast('Gallery Not Found', 'This gallery does not exist or you do not have access.', 'error');
@@ -429,18 +726,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (selectedGallery) {
-      if (profileTitleText) profileTitleText.textContent = selectedGallery.name;
-      subtitle.textContent = `${currentUser.email} • Gallery view`;
+      const titleSuffix = isSharedGalleryView ? ' (Shared)' : '';
+      if (profileTitleText) profileTitleText.textContent = `${selectedGallery.name}${titleSuffix}`;
+      subtitle.textContent = isSharedGalleryView
+        ? `${currentUser.email} • Shared gallery • View only`
+        : `${currentUser.email} • Gallery view`;
       if (galleriesSection) galleriesSection.classList.add('d-none');
       if (createGalleryButton) createGalleryButton.classList.add('d-none');
       if (backToProfileButton) backToProfileButton.classList.remove('d-none');
+      if (privacyToggle?.closest('.card')) privacyToggle.closest('.card').classList.add('d-none');
     } else {
       if (profileTitleText) profileTitleText.textContent = 'My Profile';
       subtitle.textContent = `${currentUser.email} • Your saved drawings`;
       if (galleriesSection) galleriesSection.classList.remove('d-none');
       if (createGalleryButton) createGalleryButton.classList.remove('d-none');
       if (backToProfileButton) backToProfileButton.classList.add('d-none');
+      if (privacyToggle?.closest('.card')) privacyToggle.closest('.card').classList.remove('d-none');
       renderGalleries();
+      renderUserSearchResults();
     }
 
     renderDrawings();
@@ -454,6 +757,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveGallery();
   });
 
+  searchUsersButton?.addEventListener('click', async () => {
+    await runUserSearch();
+  });
+
+  shareUserSearch?.addEventListener('keydown', async (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    await runUserSearch();
+  });
+
+  privacyToggle?.addEventListener('change', async () => {
+    await updatePrivacySetting();
+  });
+
+  saveShareSelectionButton?.addEventListener('click', async () => {
+    await saveShareSelection();
+  });
+
+  await loadCurrentProfile();
+  setProfileHeader();
   await loadData();
+  renderUserSearchResults();
   renderPage();
 });
