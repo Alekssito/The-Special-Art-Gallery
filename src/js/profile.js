@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const drawingsContainer = document.getElementById('profileDrawings');
   const profileUsername = document.getElementById('profileUsername');
   const profileTitleText = document.getElementById('profileTitleText');
+  const profileTitleAvatar = document.getElementById('profileTitleAvatar');
+  const profileTitleAvatarFallback = document.getElementById('profileTitleAvatarFallback');
+  const editProfileButton = document.getElementById('btnEditProfile');
   const privacyToggle = document.getElementById('privacyToggle');
   const shareUserSearch = document.getElementById('shareUserSearch');
   const searchUsersButton = document.getElementById('btnSearchUsers');
@@ -29,10 +32,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const shareTargetUsername = document.getElementById('shareTargetUsername');
   const shareGallerySelection = document.getElementById('shareGallerySelection');
   const saveShareSelectionButton = document.getElementById('btnSaveShareSelection');
+  const editProfileModalElement = document.getElementById('editProfileModal');
+  const editProfileUsernameInput = document.getElementById('editProfileUsername');
+  const editProfileAvatarFileInput = document.getElementById('editProfileAvatarFile');
+  const editProfileAvatarPreview = document.getElementById('editProfileAvatarPreview');
+  const editProfileAvatarFallback = document.getElementById('editProfileAvatarFallback');
+  const saveProfileButton = document.getElementById('btnSaveProfile');
 
   let galleryModal = null;
   let deleteGalleryModal = null;
   let shareGalleryModal = null;
+  let editProfileModal = null;
   let currentUser = null;
   let currentProfile = null;
   let drawings = [];
@@ -40,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let ownedGalleries = [];
   let userSearchItems = [];
   const imageSrcCache = new Map();
+  const avatarSrcCache = new Map();
   const searchParams = new URLSearchParams(window.location.search);
   const currentGalleryId = searchParams.get('gallery');
 
@@ -77,6 +88,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     shareGalleryModal = bootstrap.Modal.getOrCreateInstance(shareGalleryModalElement);
   }
 
+  if (editProfileModalElement) {
+    editProfileModal = bootstrap.Modal.getOrCreateInstance(editProfileModalElement);
+  }
+
+  function getAvatarFallbackMarkup() {
+    return '<i class="bi bi-person-circle me-2"></i>';
+  }
+
+  function getFileExtension(fileName) {
+    const parts = fileName.split('.');
+    if (parts.length < 2) return 'png';
+    return parts.pop().toLowerCase();
+  }
+
+  async function resolveAvatarSrc(avatarPath) {
+    if (!avatarPath) return '';
+    if (avatarSrcCache.has(avatarPath)) {
+      return avatarSrcCache.get(avatarPath);
+    }
+
+    const { data, error } = await supabase.storage
+      .from('profile-pictures')
+      .createSignedUrl(avatarPath, 60 * 10);
+
+    if (error || !data?.signedUrl) {
+      avatarSrcCache.set(avatarPath, '');
+      return '';
+    }
+
+    avatarSrcCache.set(avatarPath, data.signedUrl);
+    return data.signedUrl;
+  }
+
+  async function renderProfileTitleAvatar() {
+    if (!profileTitleAvatar || !profileTitleAvatarFallback) return;
+
+    const avatarSrc = await resolveAvatarSrc(currentProfile?.avatar_path || '');
+    if (avatarSrc) {
+      profileTitleAvatar.src = avatarSrc;
+      profileTitleAvatar.classList.remove('d-none');
+      profileTitleAvatarFallback.classList.add('d-none');
+      return;
+    }
+
+    profileTitleAvatar.removeAttribute('src');
+    profileTitleAvatar.classList.add('d-none');
+    profileTitleAvatarFallback.classList.remove('d-none');
+  }
+
+  async function setEditProfilePreviewFromPath(avatarPath) {
+    if (!editProfileAvatarPreview || !editProfileAvatarFallback) return;
+
+    const avatarSrc = await resolveAvatarSrc(avatarPath || '');
+    if (avatarSrc) {
+      editProfileAvatarPreview.src = avatarSrc;
+      editProfileAvatarPreview.classList.remove('d-none');
+      editProfileAvatarFallback.classList.add('d-none');
+      return;
+    }
+
+    editProfileAvatarPreview.removeAttribute('src');
+    editProfileAvatarPreview.classList.add('d-none');
+    editProfileAvatarFallback.classList.remove('d-none');
+  }
+
   function getFallbackUsername() {
     const usernameFromMetadata = currentUser.user_metadata?.username?.trim();
     const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : 'artist';
@@ -87,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fallbackUsername = getFallbackUsername();
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('user_id, username, searchable')
+      .select('user_id, username, searchable, avatar_path')
       .eq('user_id', currentUser.id)
       .maybeSingle();
 
@@ -101,9 +177,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         .upsert({
           user_id: currentUser.id,
           username: fallbackUsername,
-          searchable: true
+          searchable: true,
+          avatar_path: null
         }, { onConflict: 'user_id' })
-        .select('user_id, username, searchable')
+        .select('user_id, username, searchable, avatar_path')
         .single();
 
       if (upsertError) throw upsertError;
@@ -115,11 +192,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function setProfileHeader() {
+  async function setProfileHeader() {
     const displayUsername = currentProfile?.username?.trim() || getFallbackUsername();
     if (profileUsername) {
       profileUsername.textContent = `• ${displayUsername}`;
     }
+
+    await renderProfileTitleAvatar();
   }
 
   function getSelectedGallery() {
@@ -543,7 +622,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="col-12 col-md-6 col-xl-4">
         <div class="card h-100 card-custom">
           <div class="card-body d-flex flex-column">
-            <h3 class="h6 fw-bold mb-3"><i class="bi bi-person me-2"></i>${item.username}</h3>
+            <h3 class="h6 fw-bold mb-3 d-flex align-items-center gap-2">
+              ${item.avatarSrc
+                ? `<img src="${item.avatarSrc}" alt="${item.username} profile picture" class="user-search-avatar">`
+                : '<i class="bi bi-person-circle"></i>'}
+              <span>${item.username}</span>
+            </h3>
             <button type="button" class="btn btn-sm btn-primary-custom mt-auto btn-open-share-modal" data-user-id="${item.user_id}" data-username="${item.username}">
               <i class="bi bi-share me-1"></i> Share Galleries
             </button>
@@ -575,7 +659,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('user_id, username')
+        .select('user_id, username, avatar_path')
         .ilike('username', `%${rawTerm}%`)
         .neq('user_id', currentUser.id)
         .eq('searchable', true)
@@ -584,7 +668,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (error) throw error;
 
-      userSearchItems = data || [];
+      userSearchItems = await Promise.all(
+        (data || []).map(async (item) => ({
+          ...item,
+          avatarSrc: await resolveAvatarSrc(item.avatar_path)
+        }))
+      );
       if (!userSearchItems.length) {
         shareSearchResults.innerHTML = `
           <div class="col-12">
@@ -715,6 +804,100 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  async function openEditProfileModal() {
+    if (!editProfileModal) return;
+
+    if (editProfileUsernameInput) {
+      editProfileUsernameInput.value = currentProfile?.username || getFallbackUsername();
+    }
+
+    if (editProfileAvatarFileInput) {
+      editProfileAvatarFileInput.value = '';
+    }
+
+    await setEditProfilePreviewFromPath(currentProfile?.avatar_path || '');
+    editProfileModal.show();
+  }
+
+  async function saveProfileChanges() {
+    if (!editProfileUsernameInput) return;
+
+    const nextUsername = editProfileUsernameInput.value.trim();
+    if (!nextUsername) {
+      showToast('Invalid Username', 'Username cannot be empty.', 'error');
+      return;
+    }
+
+    const previousAvatarPath = currentProfile?.avatar_path || null;
+    let nextAvatarPath = previousAvatarPath;
+    const newAvatarFile = editProfileAvatarFileInput?.files?.[0] || null;
+
+    try {
+      if (newAvatarFile) {
+        const maxSizeBytes = 5 * 1024 * 1024;
+        if (newAvatarFile.size > maxSizeBytes) {
+          throw new Error('Profile image must be 5MB or smaller.');
+        }
+
+        const extension = getFileExtension(newAvatarFile.name);
+        const uploadPath = `${currentUser.id}/avatar-${Date.now()}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('profile-pictures')
+          .upload(uploadPath, newAvatarFile, {
+            contentType: newAvatarFile.type || 'image/png',
+            upsert: false
+          });
+
+        if (uploadError) throw uploadError;
+
+        if (currentProfile?.avatar_path && currentProfile.avatar_path !== uploadPath) {
+          await supabase.storage
+            .from('profile-pictures')
+            .remove([currentProfile.avatar_path]);
+        }
+
+        nextAvatarPath = uploadPath;
+      }
+
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('user_profiles')
+        .update({
+          username: nextUsername,
+          avatar_path: nextAvatarPath
+        })
+        .eq('user_id', currentUser.id)
+        .select('user_id, username, searchable, avatar_path')
+        .single();
+
+      if (updateError) throw updateError;
+
+      currentProfile = updatedProfile;
+
+      if (previousAvatarPath) {
+        avatarSrcCache.delete(previousAvatarPath);
+      }
+      if (nextAvatarPath) {
+        avatarSrcCache.delete(nextAvatarPath);
+      }
+
+      if (currentUser.user_metadata) {
+        currentUser.user_metadata.username = nextUsername;
+      }
+
+      await setProfileHeader();
+      editProfileModal?.hide();
+      showToast('Profile Updated', 'Your profile details were saved.', 'success');
+
+      if (userSearchItems.length) {
+        userSearchItems = [];
+        renderUserSearchResults();
+      }
+    } catch (error) {
+      showToast('Profile Update Failed', error.message || 'Could not update profile.', 'error');
+    }
+  }
+
   function renderPage() {
     const selectedGallery = getSelectedGallery();
     const isSharedGalleryView = selectedGallery && selectedGallery.user_id !== currentUser.id;
@@ -731,6 +914,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       subtitle.textContent = isSharedGalleryView
         ? `${currentUser.email} • Shared gallery • View only`
         : `${currentUser.email} • Gallery view`;
+      if (editProfileButton) editProfileButton.classList.add('d-none');
       if (galleriesSection) galleriesSection.classList.add('d-none');
       if (createGalleryButton) createGalleryButton.classList.add('d-none');
       if (backToProfileButton) backToProfileButton.classList.remove('d-none');
@@ -738,6 +922,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       if (profileTitleText) profileTitleText.textContent = 'My Profile';
       subtitle.textContent = `${currentUser.email} • Your saved drawings`;
+      if (editProfileButton) editProfileButton.classList.remove('d-none');
       if (galleriesSection) galleriesSection.classList.remove('d-none');
       if (createGalleryButton) createGalleryButton.classList.remove('d-none');
       if (backToProfileButton) backToProfileButton.classList.add('d-none');
@@ -775,8 +960,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveShareSelection();
   });
 
+  editProfileButton?.addEventListener('click', async () => {
+    await openEditProfileModal();
+  });
+
+  editProfileAvatarFileInput?.addEventListener('change', async (event) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) {
+      await setEditProfilePreviewFromPath(currentProfile?.avatar_path || '');
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(selectedFile);
+    if (editProfileAvatarPreview && editProfileAvatarFallback) {
+      editProfileAvatarPreview.src = previewUrl;
+      editProfileAvatarPreview.classList.remove('d-none');
+      editProfileAvatarFallback.classList.add('d-none');
+    }
+  });
+
+  saveProfileButton?.addEventListener('click', async () => {
+    await saveProfileChanges();
+  });
+
   await loadCurrentProfile();
-  setProfileHeader();
+  await setProfileHeader();
   await loadData();
   renderUserSearchResults();
   renderPage();

@@ -1,7 +1,7 @@
 import * as bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import '../css/style.css';
 import { getCurrentUser, signInWithEmail, signOut, signUpWithEmail } from './auth.js';
-import { getRememberMePreference, isSupabaseConfigured, setRememberMePreference } from './supabaseClient.js';
+import { getRememberMePreference, isSupabaseConfigured, setRememberMePreference, supabase } from './supabaseClient.js';
 
 /**
  * Utility function to show Toast notifications dynamically
@@ -100,19 +100,49 @@ async function handleNavbarAuthState() {
     });
   }
 
+  let displayUsername = user.email ? user.email.split('@')[0] : 'artist';
+  let avatarUrl = '';
+
+  if (supabase) {
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('username, avatar_path')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profileData?.username?.trim()) {
+      displayUsername = profileData.username.trim();
+    } else {
+      const usernameFromMetadata = user.user_metadata?.username?.trim();
+      if (usernameFromMetadata) {
+        displayUsername = usernameFromMetadata;
+      }
+    }
+
+    if (profileData?.avatar_path) {
+      const { data: avatarData } = await supabase.storage
+        .from('profile-pictures')
+        .createSignedUrl(profileData.avatar_path, 60 * 10);
+
+      avatarUrl = avatarData?.signedUrl || '';
+    }
+  }
+
   accountLinks.forEach((link) => {
     link.setAttribute('href', '/profile.html');
     const label = link.textContent?.trim().toLowerCase() || '';
     if (label.includes('sign up') || label.includes('create an account')) {
       link.textContent = 'My Profile';
     }
+
+    if (link.classList.contains('btn-accent')) {
+      link.innerHTML = avatarUrl
+        ? `<img src="${avatarUrl}" alt="Profile picture" class="profile-nav-avatar me-2"> My Profile`
+        : '<i class="bi bi-person-circle me-2"></i> My Profile';
+    }
   });
 
   if (guestBadge) {
-    const usernameFromMetadata = user.user_metadata?.username?.trim();
-    const emailPrefix = user.email ? user.email.split('@')[0] : 'artist';
-    const displayUsername = usernameFromMetadata || emailPrefix;
-
     guestBadge.classList.remove('bg-warning');
     guestBadge.classList.add('bg-success');
     guestBadge.innerHTML = `<i class="bi bi-person-check"></i> User Mode • ${displayUsername}`;
