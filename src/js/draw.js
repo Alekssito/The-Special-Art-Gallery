@@ -329,6 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let brushOpacity = 1;
   let selectedColor = '#000000';
   let prevMouseX, prevMouseY;
+  let lastFreehandX, lastFreehandY;
   let snapshot;
 
   function hexToRgba(hex, alpha) {
@@ -555,6 +556,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const coords = getCoordinates(e);
     prevMouseX = coords.x;
     prevMouseY = coords.y;
+    lastFreehandX = coords.x;
+    lastFreehandY = coords.y;
     
     // Create new path to not connect previous lines
     ctx.beginPath();
@@ -568,6 +571,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fix for line endings and joins to make it smoother
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+
+    if (selectedTool === 'pencil' || selectedTool === 'eraser') {
+      ctx.beginPath();
+      ctx.arc(coords.x, coords.y, Math.max(brushWidth / 2, 0.5), 0, Math.PI * 2);
+      ctx.fill();
+    }
     
     // Save image data to restore when drawing shapes (so you can see it previewing without stacking)
     snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -585,9 +594,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     if (selectedTool === 'pencil' || selectedTool === 'eraser') {
-      // Draw line from transparently previously stored x,y to current
+      const deltaX = coords.x - lastFreehandX;
+      const deltaY = coords.y - lastFreehandY;
+      const movedDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      if (movedDistance < 0.25) {
+        return;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(lastFreehandX, lastFreehandY);
       ctx.lineTo(coords.x, coords.y);
       ctx.stroke();
+      lastFreehandX = coords.x;
+      lastFreehandY = coords.y;
     } else if (selectedTool === 'rect') {
       drawRect(e);
     } else if (selectedTool === 'circle') {
