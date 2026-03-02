@@ -86,7 +86,7 @@
             </label>
             <div class="input-group">
               <input type="text" class="form-control" id="shareUserSearch" maxlength="50" placeholder="Type a username...">
-              <button class="btn btn-primary-custom" type="button" id="btnSearchUsers">
+              <button class="btn btn-primary-custom btn-no-lift" type="button" id="btnSearchUsers">
                 <i class="bi bi-search me-1"></i> Search
               </button>
             </div>
@@ -206,6 +206,10 @@
             <input type="file" class="form-control" id="editProfileAvatarFile" accept="image/*">
             <div class="form-text">Upload a new picture (PNG, JPG, WEBP). Max 5MB.</div>
           </div>
+
+          <button type="button" class="btn btn-sm btn-outline-danger" id="btnRemoveProfilePicture">
+            <i class="bi bi-trash3 me-1"></i> Remove current picture
+          </button>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

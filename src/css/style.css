@@ -74,6 +74,10 @@ main {
   box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
 }
 
+.btn-no-lift:hover {
+  transform: none;
+}
+
 .btn-secondary-custom {
   background-color: var(--secondary-color);
   color: var(--text-light);
@@ -350,4 +354,12 @@ main {
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.shape-icon-ellipse {
+  width: 16px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  display: inline-block;
 }

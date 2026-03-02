@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (shapeId === 'shapeRect') return { tool: 'rect', name: 'Rectangle', icon: 'bi-square', authOnly: false };
     if (shapeId === 'shapeCircle') return { tool: 'circle', name: 'Circle', icon: 'bi-circle', authOnly: false };
     if (shapeId === 'shapeStar') return { tool: 'star', name: 'Star', icon: 'bi-star', authOnly: true };
-    if (shapeId === 'shapeEllipse') return { tool: 'ellipse', name: 'Ellipse', icon: 'bi-ellipse', authOnly: true };
+    if (shapeId === 'shapeEllipse') return { tool: 'ellipse', name: 'Ellipse', icon: 'shape-icon-ellipse', authOnly: true };
     if (shapeId === 'shapeCurve') return { tool: 'curve', name: 'Curve', icon: 'bi-bezier2', authOnly: true };
     return null;
   }
@@ -409,7 +409,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (shapeBtnText) shapeBtnText.textContent = shapeConfig.name;
         if (shapeBtnIcon) {
           shapeBtnIcon.className = '';
-          shapeBtnIcon.classList.add('bi', shapeConfig.icon);
+          if (shapeConfig.icon === 'shape-icon-ellipse') {
+            shapeBtnIcon.classList.add('shape-icon-ellipse');
+          } else {
+            shapeBtnIcon.classList.add('bi', shapeConfig.icon);
+          }
         }
       });
     }

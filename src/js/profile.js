@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const editProfileAvatarFileInput = document.getElementById('editProfileAvatarFile');
   const editProfileAvatarPreview = document.getElementById('editProfileAvatarPreview');
   const editProfileAvatarFallback = document.getElementById('editProfileAvatarFallback');
+  const removeProfilePictureButton = document.getElementById('btnRemoveProfilePicture');
   const saveProfileButton = document.getElementById('btnSaveProfile');
 
   let galleryModal = null;
@@ -53,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const avatarSrcCache = new Map();
   const searchParams = new URLSearchParams(window.location.search);
   const currentGalleryId = searchParams.get('gallery');
+  let removeAvatarRequested = false;
 
   if (!subtitle || !drawingsContainer) return;
 
@@ -151,6 +153,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     editProfileAvatarPreview.removeAttribute('src');
     editProfileAvatarPreview.classList.add('d-none');
     editProfileAvatarFallback.classList.remove('d-none');
+  }
+
+  async function refreshNavbarProfileButtonAvatar() {
+    const accountLinks = document.querySelectorAll('a[href="/profile.html"]');
+    if (!accountLinks.length) return;
+
+    const displayUsername = currentProfile?.username?.trim() || getFallbackUsername();
+    const avatarSrc = await resolveAvatarSrc(currentProfile?.avatar_path || '');
+
+    accountLinks.forEach((link) => {
+      if (!link.classList.contains('btn-accent')) return;
+      link.innerHTML = avatarSrc
+        ? `<img src="${avatarSrc}" alt="Profile picture" class="profile-nav-avatar me-2"> My Profile`
+        : '<i class="bi bi-person-circle me-2"></i> My Profile';
+    });
+
+    const guestBadge = document.querySelector('.navbar .badge');
+    if (guestBadge) {
+      guestBadge.innerHTML = `<i class="bi bi-person-check"></i> User Mode • ${displayUsername}`;
+    }
   }
 
   function getFallbackUsername() {
@@ -807,6 +829,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function openEditProfileModal() {
     if (!editProfileModal) return;
 
+    removeAvatarRequested = false;
+
     if (editProfileUsernameInput) {
       editProfileUsernameInput.value = currentProfile?.username || getFallbackUsername();
     }
@@ -858,6 +882,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         nextAvatarPath = uploadPath;
+      } else if (removeAvatarRequested && previousAvatarPath) {
+        await supabase.storage
+          .from('profile-pictures')
+          .remove([previousAvatarPath]);
+        nextAvatarPath = null;
       }
 
       const { data: updatedProfile, error: updateError } = await supabase
@@ -886,6 +915,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       await setProfileHeader();
+      await refreshNavbarProfileButtonAvatar();
       editProfileModal?.hide();
       showToast('Profile Updated', 'Your profile details were saved.', 'success');
 
@@ -971,11 +1001,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    removeAvatarRequested = false;
+
     const previewUrl = URL.createObjectURL(selectedFile);
     if (editProfileAvatarPreview && editProfileAvatarFallback) {
       editProfileAvatarPreview.src = previewUrl;
       editProfileAvatarPreview.classList.remove('d-none');
       editProfileAvatarFallback.classList.add('d-none');
+    }
+  });
+
+  removeProfilePictureButton?.addEventListener('click', () => {
+    removeAvatarRequested = true;
+    if (editProfileAvatarFileInput) {
+      editProfileAvatarFileInput.value = '';
+    }
+
+    if (editProfileAvatarPreview && editProfileAvatarFallback) {
+      editProfileAvatarPreview.removeAttribute('src');
+      editProfileAvatarPreview.classList.add('d-none');
+      editProfileAvatarFallback.classList.remove('d-none');
     }
   });
 
@@ -985,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadCurrentProfile();
   await setProfileHeader();
+  await refreshNavbarProfileButtonAvatar();
   await loadData();
   renderUserSearchResults();
   renderPage();
