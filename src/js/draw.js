@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const canvasContainer = document.getElementById('canvasContainer');
   const sizeSlider = document.getElementById('sizeSlider');
   const sizeValue = document.getElementById('sizeValue');
+  const opacitySlider = document.getElementById('opacitySlider');
+  const opacityValue = document.getElementById('opacityValue');
+  const opacityControlGroup = document.getElementById('opacityControlGroup');
   const colorPicker = document.getElementById('colorPicker');
   const btnUndo = document.getElementById('btnUndo');
   const btnRedo = document.getElementById('btnRedo');
@@ -22,11 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnConfirmSaveChoice = document.getElementById('btnConfirmSaveChoice');
   const searchParams = new URLSearchParams(window.location.search);
   const editingDrawingId = searchParams.get('edit');
+  const authOnlyElements = document.querySelectorAll('.auth-only-feature');
 
   let ctx = null;
   const undoStack = [];
   const redoStack = [];
   const maxHistoryStates = 30;
+  let isAuthenticatedUser = false;
 
   const getCanvasState = () => canvas.toDataURL('image/png');
 
@@ -321,9 +326,50 @@ document.addEventListener('DOMContentLoaded', () => {
   let isDrawing = false;
   let selectedTool = 'pencil';
   let brushWidth = 5;
+  let brushOpacity = 1;
   let selectedColor = '#000000';
   let prevMouseX, prevMouseY;
   let snapshot;
+
+  function hexToRgba(hex, alpha) {
+    const normalizedHex = hex.replace('#', '');
+    const r = Number.parseInt(normalizedHex.slice(0, 2), 16);
+    const g = Number.parseInt(normalizedHex.slice(2, 4), 16);
+    const b = Number.parseInt(normalizedHex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  async function configureAuthOnlyCanvasFeatures() {
+    const user = await getCurrentUser();
+    isAuthenticatedUser = Boolean(user);
+
+    if (!isAuthenticatedUser) {
+      authOnlyElements.forEach((element) => {
+        element.classList.add('d-none');
+      });
+      if (opacityControlGroup) {
+        opacityControlGroup.classList.add('d-none');
+      }
+      return;
+    }
+
+    authOnlyElements.forEach((element) => {
+      element.classList.remove('d-none');
+    });
+    if (opacityControlGroup) {
+      opacityControlGroup.classList.remove('d-none');
+    }
+  }
+
+  function getShapeConfig(shapeId) {
+    if (shapeId === 'shapeLine') return { tool: 'line', name: 'Line', icon: 'bi-slash-lg', authOnly: false };
+    if (shapeId === 'shapeRect') return { tool: 'rect', name: 'Rectangle', icon: 'bi-square', authOnly: false };
+    if (shapeId === 'shapeCircle') return { tool: 'circle', name: 'Circle', icon: 'bi-circle', authOnly: false };
+    if (shapeId === 'shapeStar') return { tool: 'star', name: 'Star', icon: 'bi-star', authOnly: true };
+    if (shapeId === 'shapeEllipse') return { tool: 'ellipse', name: 'Ellipse', icon: 'bi-ellipse', authOnly: true };
+    if (shapeId === 'shapeCurve') return { tool: 'curve', name: 'Curve', icon: 'bi-bezier2', authOnly: true };
+    return null;
+  }
 
   // Tools Selection UI
   const toolRadios = document.querySelectorAll('input[name="tools"]');
@@ -335,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Shape drop-downs
-  const shapeIds = ['shapeLine', 'shapeRect', 'shapeCircle'];
+  const shapeIds = ['shapeLine', 'shapeRect', 'shapeCircle', 'shapeStar', 'shapeEllipse', 'shapeCurve'];
   const shapeBtnText = document.querySelector('#btnGroupDropShapes span.d-none.d-md-inline');
   const shapeBtnIcon = document.querySelector('#btnGroupDropShapes i');
   
@@ -344,32 +390,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) {
       el.addEventListener('click', (e) => {
         e.preventDefault();
+
+        const shapeConfig = getShapeConfig(id);
+        if (!shapeConfig) return;
+
+        if (shapeConfig.authOnly && !isAuthenticatedUser) {
+          showToast('Login Required', 'This shape is available for logged-in users only.', 'info');
+          return;
+        }
         
         // Uncheck pencil and eraser radio buttons
         toolRadios.forEach(radio => radio.checked = false);
-        
-        let toolName = 'Shape';
-        let iconClass = 'bi-square';
-        
-        if (id === 'shapeLine') {
-          selectedTool = 'line';
-          toolName = 'Line';
-          iconClass = 'bi-slash-lg';
-        } else if (id === 'shapeRect') {
-          selectedTool = 'rect';
-          toolName = 'Rectangle';
-          iconClass = 'bi-square';
-        } else if (id === 'shapeCircle') {
-          selectedTool = 'circle';
-          toolName = 'Circle';
-          iconClass = 'bi-circle';
-        }
+
+        selectedTool = shapeConfig.tool;
         
         // Update shape button text and icon
-        if (shapeBtnText) shapeBtnText.textContent = toolName;
+        if (shapeBtnText) shapeBtnText.textContent = shapeConfig.name;
         if (shapeBtnIcon) {
           shapeBtnIcon.className = '';
-          shapeBtnIcon.classList.add('bi', iconClass);
+          shapeBtnIcon.classList.add('bi', shapeConfig.icon);
         }
       });
     }
@@ -396,6 +435,14 @@ document.addEventListener('DOMContentLoaded', () => {
     brushWidth = parseInt(e.target.value, 10);
     sizeValue.textContent = `${brushWidth}px`;
   });
+
+  if (opacitySlider && opacityValue) {
+    opacitySlider.addEventListener('input', (e) => {
+      const value = Number.parseInt(e.target.value, 10);
+      brushOpacity = value / 100;
+      opacityValue.textContent = `${value}%`;
+    });
+  }
 
   // Drawing Logic
   const setCanvasBackground = () => {
@@ -446,6 +493,62 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.stroke();
   };
 
+  const drawEllipse = (e) => {
+    const coords = getCoordinates(e);
+    const centerX = (prevMouseX + coords.x) / 2;
+    const centerY = (prevMouseY + coords.y) / 2;
+    const radiusX = Math.abs(coords.x - prevMouseX) / 2;
+    const radiusY = Math.abs(coords.y - prevMouseY) / 2;
+
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+  };
+
+  const drawStar = (e) => {
+    const coords = getCoordinates(e);
+    const deltaX = coords.x - prevMouseX;
+    const deltaY = coords.y - prevMouseY;
+    const outerRadius = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const innerRadius = outerRadius * 0.45;
+    const spikes = 5;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    for (let index = 0; index < spikes * 2; index += 1) {
+      const isOuterPoint = index % 2 === 0;
+      const radius = isOuterPoint ? outerRadius : innerRadius;
+      const angle = (index * step) - (Math.PI / 2);
+      const x = prevMouseX + Math.cos(angle) * radius;
+      const y = prevMouseY + Math.sin(angle) * radius;
+
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+
+    ctx.closePath();
+    ctx.stroke();
+  };
+
+  const drawCurve = (e) => {
+    const coords = getCoordinates(e);
+    const midX = (prevMouseX + coords.x) / 2;
+    const midY = (prevMouseY + coords.y) / 2;
+    const deltaX = coords.x - prevMouseX;
+    const deltaY = coords.y - prevMouseY;
+    const curveOffset = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * 0.3;
+    const controlX = midX - deltaY * 0.25;
+    const controlY = midY + deltaX * 0.25 - curveOffset * 0.2;
+
+    ctx.beginPath();
+    ctx.moveTo(prevMouseX, prevMouseY);
+    ctx.quadraticCurveTo(controlX, controlY, coords.x, coords.y);
+    ctx.stroke();
+  };
+
   const startDraw = (e) => {
     if (e.type === 'touchstart') e.preventDefault();
     isDrawing = true;
@@ -456,8 +559,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create new path to not connect previous lines
     ctx.beginPath();
     ctx.lineWidth = brushWidth;
-    ctx.strokeStyle = selectedTool === 'eraser' ? 'white' : selectedColor;
-    ctx.fillStyle = selectedTool === 'eraser' ? 'white' : selectedColor;
+    const drawColor = selectedTool === 'eraser'
+      ? 'rgba(255, 255, 255, 1)'
+      : hexToRgba(selectedColor, brushOpacity);
+    ctx.strokeStyle = drawColor;
+    ctx.fillStyle = drawColor;
     
     // Fix for line endings and joins to make it smoother
     ctx.lineCap = 'round';
@@ -488,6 +594,12 @@ document.addEventListener('DOMContentLoaded', () => {
       drawCircle(e);
     } else if (selectedTool === 'line') {
       drawLine(e);
+    } else if (selectedTool === 'star') {
+      drawStar(e);
+    } else if (selectedTool === 'ellipse') {
+      drawEllipse(e);
+    } else if (selectedTool === 'curve') {
+      drawCurve(e);
     }
   };
 
@@ -567,7 +679,8 @@ document.addEventListener('DOMContentLoaded', () => {
   canvas.addEventListener('touchmove', drawing, { passive: false });
   canvas.addEventListener('touchend', stopDraw);
 
+  configureAuthOnlyCanvasFeatures();
   loadDrawingForEditing();
 
-  showToast('Welcome to the Canvas!', 'You can now draw, erase, and create shapes!', 'info');
+  showToast('Welcome to the Canvas!', 'Draw and edit with tools. Log in for advanced shapes and opacity control.', 'info');
 });
