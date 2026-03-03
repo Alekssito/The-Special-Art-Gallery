@@ -28,6 +28,7 @@ export function createProfilePersonalModule({ ui, deps, params }) {
     adminRenderer: () => {},
     galleryModal: null,
     deleteGalleryModal: null,
+    deleteDrawingModal: null,
     shareGalleryModal: null,
     editProfileModal: null
   };
@@ -90,6 +91,10 @@ export function createProfilePersonalModule({ ui, deps, params }) {
       state.deleteGalleryModal = bootstrap.Modal.getOrCreateInstance(ui.deleteGalleryModalElement);
     }
 
+    if (ui.deleteDrawingModalElement) {
+      state.deleteDrawingModal = bootstrap.Modal.getOrCreateInstance(ui.deleteDrawingModalElement);
+    }
+
     if (ui.shareGalleryModalElement) {
       state.shareGalleryModal = bootstrap.Modal.getOrCreateInstance(ui.shareGalleryModalElement);
     }
@@ -117,6 +122,8 @@ export function createProfilePersonalModule({ ui, deps, params }) {
     refreshNavbarProfileButtonAvatar: ctx.refreshNavbarProfileButtonAvatar,
     loadData: ctx.loadData,
     deleteGallery: ctx.deleteGallery,
+    confirmGalleryDelete: ctx.confirmGalleryDelete,
+    confirmDrawingDelete: ctx.confirmDrawingDelete,
     renderUserSearchResults: ctx.renderUserSearchResults,
     renderPage: ctx.renderPage
   };

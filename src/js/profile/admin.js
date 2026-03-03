@@ -14,6 +14,8 @@ export function createAdminDashboardModule({
   loadData,
   renderPage,
   deleteGallery,
+  confirmGalleryDelete,
+  confirmDrawingDelete,
   ui
 }) {
   let adminUsers = [];
@@ -69,10 +71,17 @@ export function createAdminDashboardModule({
     const usernameInput = cardElement.querySelector('.admin-user-name');
     const searchableToggle = cardElement.querySelector('.admin-user-searchable');
     const adminToggle = cardElement.querySelector('.admin-user-admin');
+    const currentUserId = getCurrentUser()?.id;
 
     const nextUsername = usernameInput?.value?.trim() || '';
     if (!nextUsername) {
       showToast('Invalid Username', 'Username cannot be empty.', 'error');
+      return;
+    }
+
+    if (userId === currentUserId && adminToggle?.checked !== true) {
+      if (adminToggle) adminToggle.checked = true;
+      showToast('Action Blocked', 'You cannot remove your own admin access.', 'error');
       return;
     }
 
@@ -82,12 +91,40 @@ export function createAdminDashboardModule({
       is_admin: adminToggle?.checked === true
     };
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('user_profiles')
       .update(payload)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select('user_id')
+      .single();
 
     if (error) throw error;
+    if (!data) throw new Error('Profile update was not applied.');
+  }
+
+  async function saveAdminAccessToggle(cardElement) {
+    const userId = cardElement?.getAttribute('data-user-id');
+    if (!userId) return;
+
+    const adminToggle = cardElement.querySelector('.admin-user-admin');
+    const currentUserId = getCurrentUser()?.id;
+    if (!adminToggle) return;
+
+    if (userId === currentUserId && adminToggle.checked !== true) {
+      adminToggle.checked = true;
+      showToast('Action Blocked', 'You cannot remove your own admin access.', 'error');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update({ is_admin: adminToggle.checked === true })
+      .eq('user_id', userId)
+      .select('user_id, is_admin')
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Admin access update was not applied.');
   }
 
   async function uploadAdminUserAvatar(cardElement) {
@@ -97,10 +134,7 @@ export function createAdminDashboardModule({
     const fileInput = cardElement.querySelector('.admin-avatar-file');
     const file = fileInput?.files?.[0] || null;
 
-    if (!file) {
-      showToast('Select Image', 'Choose a profile image first.', 'info');
-      return;
-    }
+    if (!file) return;
 
     const maxSizeBytes = 5 * 1024 * 1024;
     if (file.size > maxSizeBytes) {
@@ -192,6 +226,46 @@ export function createAdminDashboardModule({
     if (deleteError) throw deleteError;
   }
 
+  function confirmAdminGalleryDelete() {
+    if (typeof confirmGalleryDelete === 'function') {
+      return confirmGalleryDelete();
+    }
+
+    return Promise.resolve(window.confirm('Delete this gallery? Drawings inside will remain saved and move outside the gallery.'));
+  }
+
+  function confirmAdminDrawingDelete() {
+    if (typeof confirmDrawingDelete === 'function') {
+      return confirmDrawingDelete();
+    }
+
+    return Promise.resolve(window.confirm('Delete this drawing? This cannot be undone.'));
+  }
+
+  async function deleteAdminGallery(galleryId) {
+    const targetGallery = adminGalleries.find((gallery) => gallery.id === galleryId);
+    if (!targetGallery) {
+      throw new Error('Gallery was not found in admin data. Refresh and try again.');
+    }
+
+    const confirmed = await confirmAdminGalleryDelete();
+    if (!confirmed) return;
+
+    const { error: moveDrawingsError } = await supabase
+      .from('drawings')
+      .update({ gallery_id: null })
+      .eq('gallery_id', galleryId);
+
+    if (moveDrawingsError) throw moveDrawingsError;
+
+    const { error: deleteError } = await supabase
+      .from('galleries')
+      .delete()
+      .eq('id', galleryId);
+
+    if (deleteError) throw deleteError;
+  }
+
   function attachAdminDashboardHandlers() {
     ui.adminUsersList?.querySelectorAll('.btn-admin-save-user').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -213,8 +287,18 @@ export function createAdminDashboardModule({
     });
 
     ui.adminUsersList?.querySelectorAll('.btn-admin-upload-avatar').forEach((button) => {
-      button.addEventListener('click', async () => {
+      button.addEventListener('click', () => {
         const card = button.closest('[data-admin-user-card]');
+        if (!card) return;
+
+        const fileInput = card.querySelector('.admin-avatar-file');
+        fileInput?.click();
+      });
+    });
+
+    ui.adminUsersList?.querySelectorAll('.admin-avatar-file').forEach((fileInput) => {
+      fileInput.addEventListener('change', async () => {
+        const card = fileInput.closest('[data-admin-user-card]');
         if (!card) return;
 
         try {
@@ -227,6 +311,30 @@ export function createAdminDashboardModule({
           showToast('Avatar Updated', 'Profile picture updated successfully.', 'success');
         } catch (error) {
           showToast('Avatar Update Failed', error.message || 'Could not update profile picture.', 'error');
+        } finally {
+          fileInput.value = '';
+        }
+      });
+    });
+
+    ui.adminUsersList?.querySelectorAll('.admin-user-admin').forEach((adminToggle) => {
+      adminToggle.addEventListener('change', async () => {
+        const card = adminToggle.closest('[data-admin-user-card]');
+        if (!card) return;
+
+        const previousValue = !adminToggle.checked;
+
+        try {
+          await saveAdminAccessToggle(card);
+          await loadCurrentProfile();
+          await setProfileHeader();
+          await refreshNavbarProfileButtonAvatar();
+          await loadAdminData();
+          renderAdminDashboard();
+          showToast('Admin Access Updated', 'Admin access was updated successfully.', 'success');
+        } catch (error) {
+          adminToggle.checked = previousValue;
+          showToast('Admin Access Update Failed', error.message || 'Could not update admin access.', 'error');
         }
       });
     });
@@ -272,13 +380,12 @@ export function createAdminDashboardModule({
         const galleryId = button.getAttribute('data-gallery-id');
         if (!galleryId) return;
 
-        const confirmed = window.confirm('Delete this gallery? Drawings will be moved outside the gallery.');
-        if (!confirmed) return;
-
         try {
-          await deleteGallery(galleryId);
+          await deleteAdminGallery(galleryId);
+          await loadData();
           await loadAdminData();
-          renderAdminDashboard();
+          renderPage();
+          showToast('Gallery Deleted', 'Gallery removed successfully.', 'success');
         } catch (error) {
           showToast('Gallery Delete Failed', error.message || 'Could not delete gallery.', 'error');
         }
@@ -291,7 +398,7 @@ export function createAdminDashboardModule({
         const storagePath = button.getAttribute('data-storage-path') || '';
         if (!drawingId) return;
 
-        const confirmed = window.confirm('Delete this drawing? This cannot be undone.');
+        const confirmed = await confirmAdminDrawingDelete();
         if (!confirmed) return;
 
         try {
@@ -314,6 +421,7 @@ export function createAdminDashboardModule({
     }
 
     ui.adminDashboardSection.classList.remove('d-none');
+    const currentUserId = getCurrentUser()?.id;
 
     if (ui.adminUsersCount) ui.adminUsersCount.textContent = String(adminUsers.length);
     if (ui.adminGalleriesCount) ui.adminGalleriesCount.textContent = String(adminGalleries.length);
@@ -321,7 +429,9 @@ export function createAdminDashboardModule({
 
     if (ui.adminUsersList) {
       ui.adminUsersList.innerHTML = adminUsers.length
-        ? adminUsers.map((userItem) => `
+        ? adminUsers.map((userItem) => {
+          const isCurrentAdminUser = userItem.user_id === currentUserId;
+          return `
           <div class="col-12 col-xl-6" data-admin-user-card data-user-id="${userItem.user_id}">
             <div class="card h-100 border-0 bg-light">
               <div class="card-body">
@@ -340,22 +450,24 @@ export function createAdminDashboardModule({
                     <label class="form-check-label small">Public Search</label>
                   </div>
                   <div class="form-check form-switch">
-                    <input class="form-check-input admin-user-admin" type="checkbox" ${userItem.is_admin ? 'checked' : ''}>
-                    <label class="form-check-label small">Admin Access</label>
+                    <input class="form-check-input admin-user-admin" type="checkbox" ${userItem.is_admin ? 'checked' : ''} ${isCurrentAdminUser ? 'disabled' : ''}>
+                    <label class="form-check-label small">Admin Access${isCurrentAdminUser ? ' (You)' : ''}</label>
                   </div>
                 </div>
+                ${isCurrentAdminUser ? '<p class="small text-muted mb-3">You cannot remove your own admin access.</p>' : ''}
                 <div class="mb-2">
-                  <input type="file" class="form-control form-control-sm admin-avatar-file" accept="image/*">
+                  <input type="file" class="admin-avatar-file d-none" accept="image/*">
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                   <button type="button" class="btn btn-sm btn-primary-custom btn-admin-save-user"><i class="bi bi-check2-circle me-1"></i>Save User</button>
-                  <button type="button" class="btn btn-sm btn-outline-primary btn-admin-upload-avatar"><i class="bi bi-upload me-1"></i>Update Picture</button>
+                  <button type="button" class="btn btn-sm btn-outline-primary btn-admin-upload-avatar"><i class="bi bi-upload me-1"></i>Upload Picture</button>
                   <button type="button" class="btn btn-sm btn-outline-danger btn-admin-remove-avatar"><i class="bi bi-trash3 me-1"></i>Remove Picture</button>
                 </div>
               </div>
             </div>
           </div>
-        `).join('')
+        `;
+        }).join('')
         : '<div class="col-12"><div class="alert alert-info mb-0">No users found.</div></div>';
     }
 

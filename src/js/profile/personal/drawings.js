@@ -4,6 +4,35 @@ export function attachDrawings(ctx) {
   const { supabase, showToast } = deps;
   const { currentGalleryId } = params;
 
+  ctx.confirmDrawingDelete = function confirmDrawingDelete() {
+    return new Promise((resolve) => {
+      if (!state.deleteDrawingModal || !ui.deleteDrawingModalElement || !ui.confirmDeleteDrawingButton) {
+        resolve(false);
+        return;
+      }
+
+      const handleConfirm = () => {
+        cleanup();
+        state.deleteDrawingModal.hide();
+        resolve(true);
+      };
+
+      const handleCancel = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      const cleanup = () => {
+        ui.confirmDeleteDrawingButton.removeEventListener('click', handleConfirm);
+        ui.deleteDrawingModalElement.removeEventListener('hidden.bs.modal', handleCancel);
+      };
+
+      ui.confirmDeleteDrawingButton.addEventListener('click', handleConfirm);
+      ui.deleteDrawingModalElement.addEventListener('hidden.bs.modal', handleCancel, { once: true });
+      state.deleteDrawingModal.show();
+    });
+  };
+
   ctx.resolveImageSrc = async function resolveImageSrc(drawing) {
     if (state.imageSrcCache.has(drawing.id)) {
       return state.imageSrcCache.get(drawing.id);
@@ -88,7 +117,7 @@ export function attachDrawings(ctx) {
 
         if (!drawingId) return;
 
-        const confirmed = window.confirm('Delete this drawing? This cannot be undone.');
+        const confirmed = await ctx.confirmDrawingDelete();
         if (!confirmed) return;
 
         try {

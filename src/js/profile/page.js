@@ -36,6 +36,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveGalleryButton: document.getElementById('btnSaveGallery'),
     deleteGalleryModalElement: document.getElementById('deleteGalleryModal'),
     confirmDeleteGalleryButton: document.getElementById('btnConfirmDeleteGallery'),
+    deleteDrawingModalElement: document.getElementById('deleteDrawingModal'),
+    confirmDeleteDrawingButton: document.getElementById('btnConfirmDeleteDrawing'),
     shareGalleryModalElement: document.getElementById('shareGalleryModal'),
     shareTargetUserId: document.getElementById('shareTargetUserId'),
     shareTargetUsername: document.getElementById('shareTargetUsername'),
@@ -91,6 +93,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadData: personalModule.loadData,
     renderPage: personalModule.renderPage,
     deleteGallery: personalModule.deleteGallery,
+    confirmGalleryDelete: personalModule.confirmGalleryDelete,
+    confirmDrawingDelete: personalModule.confirmDrawingDelete,
     ui: {
       adminDashboardSection: ui.adminDashboardSection,
       adminUsersCount: ui.adminUsersCount,
@@ -98,7 +102,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       adminDrawingsCount: ui.adminDrawingsCount,
       adminUsersList: ui.adminUsersList,
       adminGalleriesList: ui.adminGalleriesList,
-      adminDrawingsList: ui.adminDrawingsList
+      adminDrawingsList: ui.adminDrawingsList,
+      deleteGalleryModalElement: ui.deleteGalleryModalElement,
+      confirmDeleteGalleryButton: ui.confirmDeleteGalleryButton,
+      deleteDrawingModalElement: ui.deleteDrawingModalElement,
+      confirmDeleteDrawingButton: ui.confirmDeleteDrawingButton
     }
   });
 

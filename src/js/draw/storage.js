@@ -72,7 +72,7 @@ export async function saveDrawingFromCanvas({
 
     let storagePath = `${user.id}/${crypto.randomUUID()}.png`;
     let currentGalleryId = null;
-    let drawingOwnerUserId = user.id;
+    let selectedGalleryId = null;
 
     if (editingDrawingId) {
       const { data: existingDrawing, error: existingError } = await supabase
@@ -84,24 +84,25 @@ export async function saveDrawingFromCanvas({
       if (existingError) throw existingError;
       if (existingDrawing?.storage_path) storagePath = existingDrawing.storage_path;
       currentGalleryId = existingDrawing?.gallery_id || null;
-      drawingOwnerUserId = existingDrawing?.user_id || user.id;
+      selectedGalleryId = currentGalleryId;
     }
 
-    const { data: galleries, error: galleriesError } = await supabase
-      .from('galleries')
-      .select('id, name')
-      .eq('user_id', drawingOwnerUserId)
-      .order('name', { ascending: true });
+    if (!editingDrawingId) {
+      const { data: galleries, error: galleriesError } = await supabase
+        .from('galleries')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true });
 
-    if (galleriesError) throw galleriesError;
+      if (galleriesError) throw galleriesError;
 
-    let selectedGalleryId = currentGalleryId;
-    if ((galleries || []).length > 0) {
-      const saveChoice = await promptGallerySaveChoice(galleries, currentGalleryId);
-      if (saveChoice === undefined) {
-        return;
+      if ((galleries || []).length > 0) {
+        const saveChoice = await promptGallerySaveChoice(galleries, null);
+        if (saveChoice === undefined) {
+          return;
+        }
+        selectedGalleryId = saveChoice;
       }
-      selectedGalleryId = saveChoice;
     }
 
     const blob = await new Promise((resolve, reject) => {
