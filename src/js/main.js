@@ -22,7 +22,7 @@ export function showToast(title, message, type = 'success') {
   if (!toastContainer) {
     toastContainer = document.createElement('div');
     toastContainer.id = 'toast-container';
-    toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    toastContainer.className = 'toast-container position-fixed p-3';
     document.body.appendChild(toastContainer);
   }
 

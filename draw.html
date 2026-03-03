@@ -19,7 +19,7 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto align-items-center gap-2 mt-3 mt-lg-0">
-          <li class="nav-item">
+          <li class="nav-item mode-badge-item">
             <span class="badge text-dark bg-warning rounded-pill me-3 d-flex align-items-center gap-1 p-2">
               <i class="bi bi-person-circle"></i> Guest Mode
             </span>
@@ -48,15 +48,15 @@
       <div class="canvas-toolbar shadow-sm border">
         
         <!-- Tools Group -->
-        <div class="btn-group shadow-sm me-3" role="group" aria-label="Drawing Tools">
+        <div class="btn-group shadow-sm me-3 toolbar-tools-group" role="group" aria-label="Drawing Tools">
           <input type="radio" class="btn-check" name="tools" id="toolPencil" autocomplete="off" checked>
           <label class="btn btn-outline-secondary d-flex align-items-center gap-1" for="toolPencil" title="Pencil">
-            <i class="bi bi-pencil"></i> <span class="d-none d-md-inline">Pencil</span>
+            <i class="bi bi-pencil"></i> <span>Pencil</span>
           </label>
 
           <input type="radio" class="btn-check" name="tools" id="toolEraser" autocomplete="off">
           <label class="btn btn-outline-secondary d-flex align-items-center gap-1" for="toolEraser" title="Eraser">
-            <i class="bi bi-eraser"></i> <span class="d-none d-md-inline">Eraser</span>
+            <i class="bi bi-eraser"></i> <span>Eraser</span>
           </label>
 
           <div class="btn-group" role="group">
@@ -75,19 +75,19 @@
         </div>
 
         <!-- Color and Size Group -->
-        <div class="d-flex align-items-center gap-3 me-auto border-start ps-3 border-end pe-3">
-          <div class="d-flex align-items-center gap-2">
+        <div class="toolbar-settings d-flex align-items-center gap-3 me-auto border-start ps-3 border-end pe-3">
+          <div class="toolbar-color-group d-flex align-items-center gap-2">
             <label for="colorPicker" class="fw-bold text-muted mb-0"><i class="bi bi-palette"></i></label>
             <input type="color" class="form-control form-control-color border-0 p-0 shadow-sm" id="colorPicker" value="#000000" title="Choose your color">
           </div>
 
-          <div class="d-flex align-items-center gap-2" style="min-width: 150px;">
+          <div class="toolbar-size-group d-flex align-items-center gap-2">
             <label for="sizeSlider" class="fw-bold text-muted mb-0"><i class="bi bi-border-width"></i></label>
             <input type="range" class="form-range" id="sizeSlider" min="1" max="50" value="5">
             <span id="sizeValue" class="badge bg-secondary rounded-pill">5px</span>
           </div>
 
-          <div class="d-flex align-items-center gap-2 auth-only-feature" style="min-width: 170px;" id="opacityControlGroup">
+          <div class="toolbar-opacity-group d-flex align-items-center gap-2 auth-only-feature" id="opacityControlGroup">
             <label for="opacitySlider" class="fw-bold text-muted mb-0"><i class="bi bi-circle-half"></i></label>
             <input type="range" class="form-range" id="opacitySlider" min="10" max="100" value="100">
             <span id="opacityValue" class="badge bg-secondary rounded-pill">100%</span>
