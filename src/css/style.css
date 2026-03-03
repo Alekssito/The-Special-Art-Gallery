@@ -363,3 +363,35 @@ main {
   border-radius: 50%;
   display: inline-block;
 }
+
+.admin-mode-badge {
+  background-color: #f8d7da !important;
+  color: #842029 !important;
+  border-color: #f1aeb5 !important;
+}
+
+.admin-panel-shell {
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  background: linear-gradient(180deg, #fff7f8 0%, #ffffff 60%);
+}
+
+.admin-title {
+  color: #a61e2f;
+}
+
+.admin-stat-card {
+  background: #ffffff;
+  border: 1px solid #f3d8dc;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(166, 30, 47, 0.08);
+}
+
+.admin-user-avatar {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #f3d8dc;
+}

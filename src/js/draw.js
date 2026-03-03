@@ -210,23 +210,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
       let storagePath = `${user.id}/${crypto.randomUUID()}.png`;
       let currentGalleryId = null;
+      let drawingOwnerUserId = user.id;
 
       if (editingDrawingId) {
         const { data: existingDrawing, error: existingError } = await supabase
           .from('drawings')
-          .select('id, storage_path, gallery_id')
+          .select('id, user_id, storage_path, gallery_id')
           .eq('id', editingDrawingId)
           .single();
 
         if (existingError) throw existingError;
         if (existingDrawing?.storage_path) storagePath = existingDrawing.storage_path;
         currentGalleryId = existingDrawing?.gallery_id || null;
+        drawingOwnerUserId = existingDrawing?.user_id || user.id;
       }
 
       const { data: galleries, error: galleriesError } = await supabase
         .from('galleries')
         .select('id, name')
-        .eq('user_id', user.id)
+        .eq('user_id', drawingOwnerUserId)
         .order('name', { ascending: true });
 
       if (galleriesError) throw galleriesError;

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const drawingsContainer = document.getElementById('profileDrawings');
   const profileUsername = document.getElementById('profileUsername');
   const profileTitleText = document.getElementById('profileTitleText');
+  const profileModeBadge = document.getElementById('profileModeBadge');
   const profileTitleAvatar = document.getElementById('profileTitleAvatar');
   const profileTitleAvatarFallback = document.getElementById('profileTitleAvatarFallback');
   const editProfileButton = document.getElementById('btnEditProfile');
@@ -17,8 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const shareSearchResults = document.getElementById('shareSearchResults');
   const galleriesContainer = document.getElementById('profileGalleries');
   const galleriesSection = document.getElementById('galleriesSection');
+  const personalProfileSection = document.getElementById('personalProfileSection');
   const createGalleryButton = document.getElementById('btnCreateGallery');
   const backToProfileButton = document.getElementById('btnBackToProfile');
+  const goToAdminDashboardButton = document.getElementById('btnGoToAdminDashboard');
   const galleryModalElement = document.getElementById('galleryModal');
   const galleryModalTitle = document.getElementById('galleryModalLabel');
   const galleryIdInput = document.getElementById('galleryIdInput');
@@ -39,6 +42,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const editProfileAvatarFallback = document.getElementById('editProfileAvatarFallback');
   const removeProfilePictureButton = document.getElementById('btnRemoveProfilePicture');
   const saveProfileButton = document.getElementById('btnSaveProfile');
+  const adminDashboardSection = document.getElementById('adminDashboardSection');
+  const refreshAdminDashboardButton = document.getElementById('btnRefreshAdminDashboard');
+  const adminUsersCount = document.getElementById('adminUsersCount');
+  const adminGalleriesCount = document.getElementById('adminGalleriesCount');
+  const adminDrawingsCount = document.getElementById('adminDrawingsCount');
+  const adminUsersList = document.getElementById('adminUsersList');
+  const adminGalleriesList = document.getElementById('adminGalleriesList');
+  const adminDrawingsList = document.getElementById('adminDrawingsList');
 
   let galleryModal = null;
   let deleteGalleryModal = null;
@@ -49,11 +60,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   let drawings = [];
   let galleries = [];
   let ownedGalleries = [];
+  let adminUsers = [];
+  let adminGalleries = [];
+  let adminDrawings = [];
   let userSearchItems = [];
   const imageSrcCache = new Map();
   const avatarSrcCache = new Map();
   const searchParams = new URLSearchParams(window.location.search);
   const currentGalleryId = searchParams.get('gallery');
+  const isAdminDashboardView = searchParams.get('admin') === '1';
   let removeAvatarRequested = false;
 
   if (!subtitle || !drawingsContainer) return;
@@ -161,6 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const displayUsername = currentProfile?.username?.trim() || getFallbackUsername();
     const avatarSrc = await resolveAvatarSrc(currentProfile?.avatar_path || '');
+    const isAdmin = currentProfile?.is_admin === true;
 
     accountLinks.forEach((link) => {
       if (!link.classList.contains('btn-accent')) return;
@@ -171,7 +187,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const guestBadge = document.querySelector('.navbar .badge');
     if (guestBadge) {
-      guestBadge.innerHTML = `<i class="bi bi-person-check"></i> User Mode • ${displayUsername}`;
+      guestBadge.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+      guestBadge.classList.add(isAdmin ? 'bg-danger' : 'bg-success');
+      guestBadge.innerHTML = isAdmin
+        ? `<i class="bi bi-shield-lock-fill"></i> Admin Mode • ${displayUsername}`
+        : `<i class="bi bi-person-check"></i> User Mode • ${displayUsername}`;
     }
   }
 
@@ -185,7 +205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fallbackUsername = getFallbackUsername();
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('user_id, username, searchable, avatar_path')
+      .select('user_id, username, searchable, avatar_path, is_admin')
       .eq('user_id', currentUser.id)
       .maybeSingle();
 
@@ -200,9 +220,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           user_id: currentUser.id,
           username: fallbackUsername,
           searchable: true,
-          avatar_path: null
+          avatar_path: null,
+          is_admin: false
         }, { onConflict: 'user_id' })
-        .select('user_id, username, searchable, avatar_path')
+        .select('user_id, username, searchable, avatar_path, is_admin')
         .single();
 
       if (upsertError) throw upsertError;
@@ -218,6 +239,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const displayUsername = currentProfile?.username?.trim() || getFallbackUsername();
     if (profileUsername) {
       profileUsername.textContent = `• ${displayUsername}`;
+    }
+
+    if (profileModeBadge) {
+      const isAdmin = currentProfile?.is_admin === true;
+      profileModeBadge.textContent = isAdmin ? 'Admin Mode' : 'User Mode';
+      profileModeBadge.classList.toggle('admin-mode-badge', isAdmin);
+      profileModeBadge.classList.toggle('bg-success-subtle', !isAdmin);
+      profileModeBadge.classList.toggle('text-success-emphasis', !isAdmin);
+      profileModeBadge.classList.toggle('border-success-subtle', !isAdmin);
     }
 
     await renderProfileTitleAvatar();
@@ -314,14 +344,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (drawingsError) throw drawingsError;
     if (galleriesError) throw galleriesError;
 
+    let visibleGalleryIdsForAdmin = null;
+    if (currentProfile?.is_admin === true) {
+      const { data: shareData, error: shareError } = await supabase
+        .from('gallery_shares')
+        .select('gallery_id')
+        .eq('shared_with_user_id', currentUser.id);
+
+      if (shareError) throw shareError;
+      visibleGalleryIdsForAdmin = new Set((shareData || []).map((item) => item.gallery_id));
+    }
+
+    const filteredGalleries = (galleriesData || []).filter((gallery) => {
+      if (currentProfile?.is_admin !== true) return true;
+      return gallery.user_id === currentUser.id || visibleGalleryIdsForAdmin.has(gallery.id);
+    });
+
+    const filteredDrawings = (drawingsData || []).filter((drawing) => {
+      if (currentProfile?.is_admin !== true) return true;
+      return drawing.user_id === currentUser.id
+        || (drawing.gallery_id && visibleGalleryIdsForAdmin.has(drawing.gallery_id));
+    });
+
     drawings = await Promise.all(
-      (drawingsData || []).map(async (drawing) => ({
+      filteredDrawings.map(async (drawing) => ({
         ...drawing,
         imageSrc: await resolveImageSrc(drawing)
       }))
     );
 
-    galleries = galleriesData || [];
+    galleries = filteredGalleries;
     ownedGalleries = galleries.filter((gallery) => gallery.user_id === currentUser.id);
   }
 
@@ -429,7 +481,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function deleteGallery(galleryId) {
     const targetGallery = galleries.find((gallery) => gallery.id === galleryId);
-    if (!targetGallery || targetGallery.user_id !== currentUser.id) {
+    const canAdminDelete = currentProfile?.is_admin === true;
+    if (!targetGallery || (targetGallery.user_id !== currentUser.id && !canAdminDelete)) {
       showToast('Access Denied', 'You can only delete your own galleries.', 'error');
       return;
     }
@@ -896,7 +949,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           avatar_path: nextAvatarPath
         })
         .eq('user_id', currentUser.id)
-        .select('user_id, username, searchable, avatar_path')
+        .select('user_id, username, searchable, avatar_path, is_admin')
         .single();
 
       if (updateError) throw updateError;
@@ -928,9 +981,406 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  async function loadAdminData() {
+    if (currentProfile?.is_admin !== true) return;
+
+    const [usersResult, galleriesResult, drawingsResult] = await Promise.all([
+      supabase
+        .from('user_profiles')
+        .select('user_id, username, searchable, avatar_path, is_admin, created_at')
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('galleries')
+        .select('id, user_id, name, created_at')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('drawings')
+        .select('id, user_id, title, image_data, storage_path, created_at, gallery_id')
+        .order('created_at', { ascending: false })
+    ]);
+
+    if (usersResult.error) throw usersResult.error;
+    if (galleriesResult.error) throw galleriesResult.error;
+    if (drawingsResult.error) throw drawingsResult.error;
+
+    adminUsers = await Promise.all((usersResult.data || []).map(async (userItem) => ({
+      ...userItem,
+      avatarSrc: await resolveAvatarSrc(userItem.avatar_path || '')
+    })));
+    adminGalleries = galleriesResult.data || [];
+    adminDrawings = await Promise.all((drawingsResult.data || []).map(async (drawingItem) => ({
+      ...drawingItem,
+      imageSrc: await resolveImageSrc(drawingItem)
+    })));
+  }
+
+  async function saveAdminUserProfile(cardElement) {
+    const userId = cardElement?.getAttribute('data-user-id');
+    if (!userId) return;
+
+    const usernameInput = cardElement.querySelector('.admin-user-name');
+    const searchableToggle = cardElement.querySelector('.admin-user-searchable');
+    const adminToggle = cardElement.querySelector('.admin-user-admin');
+
+    const nextUsername = usernameInput?.value?.trim() || '';
+    if (!nextUsername) {
+      showToast('Invalid Username', 'Username cannot be empty.', 'error');
+      return;
+    }
+
+    const payload = {
+      username: nextUsername,
+      searchable: searchableToggle?.checked === true,
+      is_admin: adminToggle?.checked === true
+    };
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .update(payload)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  }
+
+  async function uploadAdminUserAvatar(cardElement) {
+    const userId = cardElement?.getAttribute('data-user-id');
+    if (!userId) return;
+
+    const fileInput = cardElement.querySelector('.admin-avatar-file');
+    const file = fileInput?.files?.[0] || null;
+
+    if (!file) {
+      showToast('Select Image', 'Choose a profile image first.', 'info');
+      return;
+    }
+
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      showToast('Image Too Large', 'Profile image must be 5MB or smaller.', 'error');
+      return;
+    }
+
+    const existingUser = adminUsers.find((item) => item.user_id === userId);
+    const extension = getFileExtension(file.name);
+    const uploadPath = `${userId}/avatar-${Date.now()}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('profile-pictures')
+      .upload(uploadPath, file, {
+        contentType: file.type || 'image/png',
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    if (existingUser?.avatar_path && existingUser.avatar_path !== uploadPath) {
+      await supabase.storage
+        .from('profile-pictures')
+        .remove([existingUser.avatar_path]);
+      avatarSrcCache.delete(existingUser.avatar_path);
+    }
+
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({ avatar_path: uploadPath })
+      .eq('user_id', userId);
+
+    if (updateError) throw updateError;
+    avatarSrcCache.delete(uploadPath);
+  }
+
+  async function removeAdminUserAvatar(cardElement) {
+    const userId = cardElement?.getAttribute('data-user-id');
+    if (!userId) return;
+
+    const existingUser = adminUsers.find((item) => item.user_id === userId);
+    if (existingUser?.avatar_path) {
+      await supabase.storage
+        .from('profile-pictures')
+        .remove([existingUser.avatar_path]);
+      avatarSrcCache.delete(existingUser.avatar_path);
+    }
+
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ avatar_path: null })
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  }
+
+  async function saveAdminGallery(cardElement) {
+    const galleryId = cardElement?.getAttribute('data-gallery-id');
+    if (!galleryId) return;
+
+    const nameInput = cardElement.querySelector('.admin-gallery-name');
+    const nextName = nameInput?.value?.trim() || '';
+    if (!nextName) {
+      showToast('Invalid Name', 'Gallery name cannot be empty.', 'error');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('galleries')
+      .update({ name: nextName })
+      .eq('id', galleryId);
+
+    if (error) throw error;
+  }
+
+  async function deleteAdminDrawing(drawingId, storagePath) {
+    if (!drawingId) return;
+
+    if (storagePath) {
+      const { error: storageDeleteError } = await supabase.storage
+        .from('drawings')
+        .remove([storagePath]);
+
+      if (storageDeleteError) throw storageDeleteError;
+    }
+
+    const { error: deleteError } = await supabase
+      .from('drawings')
+      .delete()
+      .eq('id', drawingId);
+
+    if (deleteError) throw deleteError;
+    imageSrcCache.delete(drawingId);
+  }
+
+  function attachAdminDashboardHandlers() {
+    adminUsersList?.querySelectorAll('.btn-admin-save-user').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const card = button.closest('[data-admin-user-card]');
+        if (!card) return;
+
+        try {
+          await saveAdminUserProfile(card);
+          await loadCurrentProfile();
+          await setProfileHeader();
+          await refreshNavbarProfileButtonAvatar();
+          await loadAdminData();
+          renderAdminDashboard();
+          showToast('User Updated', 'User profile and permissions were saved.', 'success');
+        } catch (error) {
+          showToast('Update Failed', error.message || 'Could not update user.', 'error');
+        }
+      });
+    });
+
+    adminUsersList?.querySelectorAll('.btn-admin-upload-avatar').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const card = button.closest('[data-admin-user-card]');
+        if (!card) return;
+
+        try {
+          await uploadAdminUserAvatar(card);
+          await loadCurrentProfile();
+          await setProfileHeader();
+          await refreshNavbarProfileButtonAvatar();
+          await loadAdminData();
+          renderAdminDashboard();
+          showToast('Avatar Updated', 'Profile picture updated successfully.', 'success');
+        } catch (error) {
+          showToast('Avatar Update Failed', error.message || 'Could not update profile picture.', 'error');
+        }
+      });
+    });
+
+    adminUsersList?.querySelectorAll('.btn-admin-remove-avatar').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const card = button.closest('[data-admin-user-card]');
+        if (!card) return;
+
+        try {
+          await removeAdminUserAvatar(card);
+          await loadCurrentProfile();
+          await setProfileHeader();
+          await refreshNavbarProfileButtonAvatar();
+          await loadAdminData();
+          renderAdminDashboard();
+          showToast('Avatar Removed', 'Profile picture removed successfully.', 'success');
+        } catch (error) {
+          showToast('Avatar Remove Failed', error.message || 'Could not remove profile picture.', 'error');
+        }
+      });
+    });
+
+    adminGalleriesList?.querySelectorAll('.btn-admin-save-gallery').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const card = button.closest('[data-admin-gallery-card]');
+        if (!card) return;
+
+        try {
+          await saveAdminGallery(card);
+          await loadData();
+          await loadAdminData();
+          renderPage();
+          showToast('Gallery Updated', 'Gallery updated successfully.', 'success');
+        } catch (error) {
+          showToast('Gallery Update Failed', error.message || 'Could not update gallery.', 'error');
+        }
+      });
+    });
+
+    adminGalleriesList?.querySelectorAll('.btn-admin-delete-gallery').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const galleryId = button.getAttribute('data-gallery-id');
+        if (!galleryId) return;
+
+        const confirmed = window.confirm('Delete this gallery? Drawings will be moved outside the gallery.');
+        if (!confirmed) return;
+
+        try {
+          await deleteGallery(galleryId);
+          await loadAdminData();
+          renderAdminDashboard();
+        } catch (error) {
+          showToast('Gallery Delete Failed', error.message || 'Could not delete gallery.', 'error');
+        }
+      });
+    });
+
+    adminDrawingsList?.querySelectorAll('.btn-admin-delete-drawing').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const drawingId = button.getAttribute('data-id');
+        const storagePath = button.getAttribute('data-storage-path') || '';
+        if (!drawingId) return;
+
+        const confirmed = window.confirm('Delete this drawing? This cannot be undone.');
+        if (!confirmed) return;
+
+        try {
+          await deleteAdminDrawing(drawingId, storagePath);
+          await loadData();
+          await loadAdminData();
+          renderPage();
+          showToast('Drawing Deleted', 'Drawing removed successfully.', 'success');
+        } catch (error) {
+          showToast('Delete Failed', error.message || 'Could not delete drawing.', 'error');
+        }
+      });
+    });
+  }
+
+  function renderAdminDashboard() {
+    if (!adminDashboardSection || currentProfile?.is_admin !== true || currentGalleryId || !isAdminDashboardView) {
+      adminDashboardSection?.classList.add('d-none');
+      return;
+    }
+
+    adminDashboardSection.classList.remove('d-none');
+
+    if (adminUsersCount) adminUsersCount.textContent = String(adminUsers.length);
+    if (adminGalleriesCount) adminGalleriesCount.textContent = String(adminGalleries.length);
+    if (adminDrawingsCount) adminDrawingsCount.textContent = String(adminDrawings.length);
+
+    if (adminUsersList) {
+      adminUsersList.innerHTML = adminUsers.length
+        ? adminUsers.map((userItem) => `
+          <div class="col-12 col-xl-6" data-admin-user-card data-user-id="${userItem.user_id}">
+            <div class="card h-100 border-0 bg-light">
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  ${userItem.avatarSrc
+                    ? `<img src="${userItem.avatarSrc}" alt="${escapeHtml(userItem.username)} profile picture" class="admin-user-avatar">`
+                    : '<i class="bi bi-person-circle" style="font-size: 3rem; color: #a61e2f;"></i>'}
+                  <div class="flex-grow-1">
+                    <label class="form-label small mb-1">Username</label>
+                    <input type="text" class="form-control form-control-sm admin-user-name" value="${escapeHtml(userItem.username)}" maxlength="50">
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-3 mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input admin-user-searchable" type="checkbox" ${userItem.searchable ? 'checked' : ''}>
+                    <label class="form-check-label small">Public Search</label>
+                  </div>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input admin-user-admin" type="checkbox" ${userItem.is_admin ? 'checked' : ''}>
+                    <label class="form-check-label small">Admin Access</label>
+                  </div>
+                </div>
+                <div class="mb-2">
+                  <input type="file" class="form-control form-control-sm admin-avatar-file" accept="image/*">
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-sm btn-primary-custom btn-admin-save-user"><i class="bi bi-check2-circle me-1"></i>Save User</button>
+                  <button type="button" class="btn btn-sm btn-outline-primary btn-admin-upload-avatar"><i class="bi bi-upload me-1"></i>Update Picture</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-admin-remove-avatar"><i class="bi bi-trash3 me-1"></i>Remove Picture</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('')
+        : '<div class="col-12"><div class="alert alert-info mb-0">No users found.</div></div>';
+    }
+
+    if (adminGalleriesList) {
+      adminGalleriesList.innerHTML = adminGalleries.length
+        ? adminGalleries.map((gallery) => {
+          const owner = adminUsers.find((item) => item.user_id === gallery.user_id);
+          return `
+            <div class="col-12 col-lg-6" data-admin-gallery-card data-gallery-id="${gallery.id}">
+              <div class="card h-100 border-0 bg-light">
+                <div class="card-body">
+                  <label class="form-label small mb-1">Gallery Name</label>
+                  <input type="text" class="form-control form-control-sm admin-gallery-name mb-2" value="${escapeHtml(gallery.name)}" maxlength="80">
+                  <p class="small text-muted mb-3">Owner: ${escapeHtml(owner?.username || gallery.user_id)}</p>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary-custom btn-admin-save-gallery"><i class="bi bi-check2-circle me-1"></i>Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-admin-delete-gallery" data-gallery-id="${gallery.id}"><i class="bi bi-trash me-1"></i>Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')
+        : '<div class="col-12"><div class="alert alert-info mb-0">No galleries found.</div></div>';
+    }
+
+    if (adminDrawingsList) {
+      adminDrawingsList.innerHTML = adminDrawings.length
+        ? adminDrawings.map((drawingItem) => {
+          const owner = adminUsers.find((item) => item.user_id === drawingItem.user_id);
+          return `
+            <div class="col-12 col-md-6 col-xl-4">
+              <div class="card h-100 card-custom">
+                <img src="${drawingItem.imageSrc}" class="card-img-top profile-drawing-image" alt="Drawing preview">
+                <div class="card-body d-flex flex-column">
+                  <p class="small text-muted mb-2">Owner: ${escapeHtml(owner?.username || drawingItem.user_id)}</p>
+                  <p class="small text-muted mb-3">Saved: ${new Date(drawingItem.created_at).toLocaleString()}</p>
+                  <div class="mt-auto d-flex gap-2 flex-wrap">
+                    <a href="/draw.html?edit=${drawingItem.id}" class="btn btn-sm btn-primary-custom flex-grow-1">
+                      <i class="bi bi-pencil-square me-1"></i> Edit
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger flex-grow-1 btn-admin-delete-drawing" data-id="${drawingItem.id}" data-storage-path="${drawingItem.storage_path || ''}">
+                      <i class="bi bi-trash me-1"></i> Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')
+        : '<div class="col-12"><div class="alert alert-info mb-0">No drawings found.</div></div>';
+    }
+
+    attachAdminDashboardHandlers();
+  }
+
   function renderPage() {
     const selectedGallery = getSelectedGallery();
     const isSharedGalleryView = selectedGallery && selectedGallery.user_id !== currentUser.id;
+    const isAdmin = currentProfile?.is_admin === true;
 
     if (currentGalleryId && !selectedGallery) {
       showToast('Gallery Not Found', 'This gallery does not exist or you do not have access.', 'error');
@@ -947,21 +1397,55 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (editProfileButton) editProfileButton.classList.add('d-none');
       if (galleriesSection) galleriesSection.classList.add('d-none');
       if (createGalleryButton) createGalleryButton.classList.add('d-none');
-      if (backToProfileButton) backToProfileButton.classList.remove('d-none');
+      if (backToProfileButton) {
+        backToProfileButton.classList.remove('d-none');
+        backToProfileButton.setAttribute('href', '/profile.html');
+        backToProfileButton.innerHTML = '<i class="bi bi-arrow-left-circle-fill me-1"></i> Back to Profile';
+      }
+      if (goToAdminDashboardButton) goToAdminDashboardButton.classList.add('d-none');
       if (privacyToggle?.closest('.card')) privacyToggle.closest('.card').classList.add('d-none');
+      if (personalProfileSection) personalProfileSection.classList.remove('d-none');
+      if (adminDashboardSection) adminDashboardSection.classList.add('d-none');
     } else {
-      if (profileTitleText) profileTitleText.textContent = 'My Profile';
-      subtitle.textContent = `${currentUser.email} • Your saved drawings`;
-      if (editProfileButton) editProfileButton.classList.remove('d-none');
-      if (galleriesSection) galleriesSection.classList.remove('d-none');
-      if (createGalleryButton) createGalleryButton.classList.remove('d-none');
-      if (backToProfileButton) backToProfileButton.classList.add('d-none');
-      if (privacyToggle?.closest('.card')) privacyToggle.closest('.card').classList.remove('d-none');
+      if (profileTitleText) profileTitleText.textContent = isAdminDashboardView ? 'Admin Dashboard' : 'My Profile';
+      subtitle.textContent = isAdminDashboardView
+        ? `${currentUser.email} • Admin management screen`
+        : isAdmin
+          ? `${currentUser.email} • Personal profile screen`
+          : `${currentUser.email} • Your saved drawings`;
+
+      if (goToAdminDashboardButton) {
+        goToAdminDashboardButton.classList.toggle('d-none', !isAdmin || isAdminDashboardView);
+      }
+
+      if (isAdminDashboardView && isAdmin) {
+        if (editProfileButton) editProfileButton.classList.add('d-none');
+        if (galleriesSection) galleriesSection.classList.add('d-none');
+        if (createGalleryButton) createGalleryButton.classList.add('d-none');
+        if (backToProfileButton) {
+          backToProfileButton.classList.remove('d-none');
+          backToProfileButton.setAttribute('href', '/profile.html');
+          backToProfileButton.innerHTML = '<i class="bi bi-arrow-left-circle-fill me-1"></i> Back to Profile';
+        }
+        if (privacyToggle?.closest('.card')) privacyToggle.closest('.card').classList.add('d-none');
+        if (personalProfileSection) personalProfileSection.classList.add('d-none');
+      } else {
+        if (editProfileButton) editProfileButton.classList.remove('d-none');
+        if (galleriesSection) galleriesSection.classList.remove('d-none');
+        if (createGalleryButton) createGalleryButton.classList.remove('d-none');
+        if (backToProfileButton) backToProfileButton.classList.add('d-none');
+        if (privacyToggle?.closest('.card')) privacyToggle.closest('.card').classList.remove('d-none');
+        if (personalProfileSection) personalProfileSection.classList.remove('d-none');
+      }
+
+      renderAdminDashboard();
       renderGalleries();
       renderUserSearchResults();
     }
 
-    renderDrawings();
+    if (!(isAdminDashboardView && isAdmin)) {
+      renderDrawings();
+    }
   }
 
   createGalleryButton?.addEventListener('click', () => {
@@ -1028,10 +1512,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveProfileChanges();
   });
 
+  refreshAdminDashboardButton?.addEventListener('click', async () => {
+    try {
+      await loadCurrentProfile();
+      await setProfileHeader();
+      await refreshNavbarProfileButtonAvatar();
+      await loadData();
+      await loadAdminData();
+      renderPage();
+      showToast('Dashboard Refreshed', 'Admin dashboard data is up to date.', 'success');
+    } catch (error) {
+      showToast('Refresh Failed', error.message || 'Could not refresh admin dashboard.', 'error');
+    }
+  });
+
   await loadCurrentProfile();
+  if (isAdminDashboardView && currentProfile?.is_admin !== true) {
+    showToast('Access Denied', 'Only admins can access the admin dashboard.', 'error');
+    window.location.href = '/profile.html';
+    return;
+  }
   await setProfileHeader();
   await refreshNavbarProfileButtonAvatar();
   await loadData();
+  await loadAdminData();
   renderUserSearchResults();
   renderPage();
 });

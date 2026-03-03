@@ -102,13 +102,16 @@ async function handleNavbarAuthState() {
 
   let displayUsername = user.email ? user.email.split('@')[0] : 'artist';
   let avatarUrl = '';
+  let isAdmin = false;
 
   if (supabase) {
     const { data: profileData } = await supabase
       .from('user_profiles')
-      .select('username, avatar_path')
+      .select('username, avatar_path, is_admin')
       .eq('user_id', user.id)
       .maybeSingle();
+
+    isAdmin = profileData?.is_admin === true;
 
     if (profileData?.username?.trim()) {
       displayUsername = profileData.username.trim();
@@ -144,8 +147,12 @@ async function handleNavbarAuthState() {
 
   if (guestBadge) {
     guestBadge.classList.remove('bg-warning');
-    guestBadge.classList.add('bg-success');
-    guestBadge.innerHTML = `<i class="bi bi-person-check"></i> User Mode • ${displayUsername}`;
+    guestBadge.classList.remove('bg-success');
+    guestBadge.classList.remove('bg-danger');
+    guestBadge.classList.add(isAdmin ? 'bg-danger' : 'bg-success');
+    guestBadge.innerHTML = isAdmin
+      ? `<i class="bi bi-shield-lock-fill"></i> Admin Mode • ${displayUsername}`
+      : `<i class="bi bi-person-check"></i> User Mode • ${displayUsername}`;
     guestBadge.style.cursor = 'pointer';
     guestBadge.setAttribute('title', 'Go to profile');
     guestBadge.setAttribute('role', 'link');
