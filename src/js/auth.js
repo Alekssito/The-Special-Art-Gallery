@@ -41,6 +41,12 @@ export async function signOut() {
 
 export async function getCurrentUser() {
   if (!isSupabaseConfigured || !supabase) return null;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData?.session?.user) {
+    return sessionData.session.user;
+  }
+
   const { data, error } = await supabase.auth.getUser();
   if (error) return null;
   return data.user ?? null;

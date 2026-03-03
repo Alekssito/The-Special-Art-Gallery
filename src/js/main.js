@@ -69,8 +69,8 @@ async function handleNavbarAuthState() {
   const navbar = document.querySelector('.navbar');
   if (!navbar) return;
 
-  const loginLink = navbar.querySelector('a[href="/login.html"]');
-  const accountLinks = document.querySelectorAll('a[href="/register.html"]');
+  const loginLink = navbar.querySelector('a[href="/login.html"], a[href="login.html"]');
+  const accountLinks = document.querySelectorAll('a[href="/register.html"], a[href="register.html"]');
   const guestBadge = navbar.querySelector('.badge');
 
   const user = await getCurrentUser();
@@ -86,18 +86,21 @@ async function handleNavbarAuthState() {
   if (loginLink) {
     loginLink.textContent = 'Logout';
     loginLink.setAttribute('href', '#');
-    loginLink.addEventListener('click', async (event) => {
-      event.preventDefault();
-      try {
-        await signOut();
-        showToast('Logged Out', 'You have been signed out.', 'success');
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 700);
-      } catch (error) {
-        showToast('Logout Failed', error.message || 'Could not sign out.', 'error');
-      }
-    });
+    if (!loginLink.dataset.logoutBound) {
+      loginLink.dataset.logoutBound = '1';
+      loginLink.addEventListener('click', async (event) => {
+        event.preventDefault();
+        try {
+          await signOut();
+          showToast('Logged Out', 'You have been signed out.', 'success');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 700);
+        } catch (error) {
+          showToast('Logout Failed', error.message || 'Could not sign out.', 'error');
+        }
+      });
+    }
   }
 
   let displayUsername = user.email ? user.email.split('@')[0] : 'artist';
@@ -249,4 +252,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   handleLoginForm();
   handleRegisterForm();
   await handleNavbarAuthState();
+
+  if (supabase) {
+    supabase.auth.onAuthStateChange(() => {
+      void handleNavbarAuthState();
+    });
+  }
 });
