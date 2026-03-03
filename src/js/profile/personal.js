@@ -1,4 +1,5 @@
 import * as bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import { navigateTo } from '../navigation.js';
 import { attachProfileData } from './personal/profileData.js';
 import { attachDrawings } from './personal/drawings.js';
 import { attachGalleries } from './personal/galleries.js';
@@ -72,7 +73,7 @@ export function createProfilePersonalModule({ ui, deps, params }) {
     if (!state.currentUser) {
       showToast('Login Required', 'Please log in to view your profile.', 'info');
       setTimeout(() => {
-        window.location.href = '/login.html';
+        navigateTo('login');
       }, 900);
       return { ready: false };
     }

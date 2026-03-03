@@ -1,3 +1,5 @@
+import { getRouteUrl } from '../navigation.js';
+
 export function createAdminDashboardModule({
   supabase,
   showToast,
@@ -506,7 +508,7 @@ export function createAdminDashboardModule({
                   <p class="small text-muted mb-2">Owner: ${escapeHtml(owner?.username || drawingItem.user_id)}</p>
                   <p class="small text-muted mb-3">Saved: ${new Date(drawingItem.created_at).toLocaleString()}</p>
                   <div class="mt-auto d-flex gap-2 flex-wrap">
-                    <a href="/draw.html?edit=${drawingItem.id}" class="btn btn-sm btn-primary-custom flex-grow-1">
+                    <a href="${getRouteUrl('draw', { query: { edit: drawingItem.id } })}" class="btn btn-sm btn-primary-custom flex-grow-1">
                       <i class="bi bi-pencil-square me-1"></i> Edit
                     </a>
                     <button class="btn btn-sm btn-outline-danger flex-grow-1 btn-admin-delete-drawing" data-id="${drawingItem.id}" data-storage-path="${drawingItem.storage_path || ''}">

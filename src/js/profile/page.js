@@ -1,5 +1,6 @@
 import { getCurrentUser } from '../auth.js';
 import { showToast } from '../main.js';
+import { navigateTo } from '../navigation.js';
 import { isSupabaseConfigured, supabase } from '../supabaseClient.js';
 import { createAdminDashboardModule } from './admin.js';
 import { createProfilePersonalModule } from './personal.js';
@@ -131,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await personalModule.loadCurrentProfile();
   if (isAdminDashboardView && personalModule.getCurrentProfile()?.is_admin !== true) {
     showToast('Access Denied', 'Only admins can access the admin dashboard.', 'error');
-    window.location.href = '/profile.html';
+    navigateTo('profile');
     return;
   }
 

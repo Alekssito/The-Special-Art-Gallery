@@ -1,3 +1,5 @@
+import { getRouteUrl } from '../../navigation.js';
+
 export function attachProfileData(ctx) {
   const { ui, deps, state } = ctx;
   const {
@@ -75,7 +77,23 @@ export function attachProfileData(ctx) {
   };
 
   ctx.refreshNavbarProfileButtonAvatar = async function refreshNavbarProfileButtonAvatar() {
-    const accountLinks = document.querySelectorAll('a[href="/profile.html"]');
+    const profileUrl = getRouteUrl('profile');
+    const accountLinks = Array.from(document.querySelectorAll('a[href]')).filter((link) => {
+      const href = link.getAttribute('href') || '';
+      if (!href) return false;
+
+      if (href.startsWith(profileUrl)) return true;
+      if (href.startsWith('/profile') || href.startsWith('/profile.html')) return true;
+
+      try {
+        const url = new URL(href, window.location.origin);
+        const pathname = url.pathname.toLowerCase();
+        return pathname === '/profile' || pathname === '/profile.html';
+      } catch {
+        return false;
+      }
+    });
+
     if (!accountLinks.length) return;
 
     const displayUsername = state.currentProfile?.username?.trim() || ctx.getFallbackUsername();

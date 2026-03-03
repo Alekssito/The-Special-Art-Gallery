@@ -1,3 +1,5 @@
+import { getRouteUrl } from '../../navigation.js';
+
 export function attachDrawings(ctx) {
   const { ui, deps, params, state } = ctx;
   const { drawingsContainer } = ui;
@@ -91,7 +93,7 @@ export function attachDrawings(ctx) {
                     <i class="bi bi-download me-1"></i> Download
                   </button>
                   ${canManageDrawing ? `
-                  <a href="/draw.html?edit=${drawing.id}" class="btn btn-sm btn-primary-custom flex-grow-1">
+                  <a href="${getRouteUrl('draw', { query: { edit: drawing.id } })}" class="btn btn-sm btn-primary-custom flex-grow-1">
                     <i class="bi bi-pencil-square me-1"></i> Edit
                   </a>
                   <button class="btn btn-sm btn-outline-danger flex-grow-1 btn-delete-drawing" data-id="${drawing.id}" data-storage-path="${drawing.storage_path || ''}">

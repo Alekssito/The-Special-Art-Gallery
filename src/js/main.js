@@ -1,6 +1,7 @@
 import * as bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import '../css/style.css';
 import { getCurrentUser, signInWithEmail, signOut, signUpWithEmail } from './auth.js';
+import { getRouteUrl, navigateTo } from './navigation.js';
 import { getRememberMePreference, isSupabaseConfigured, setRememberMePreference, supabase } from './supabaseClient.js';
 
 /**
@@ -85,6 +86,31 @@ function isPathMatch(pathname, candidates) {
   return candidates.includes(pathname);
 }
 
+async function resolvePostLoginRoute(user) {
+  if (!supabase || !user?.id) {
+    return { route: 'draw' };
+  }
+
+  try {
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('is_admin')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profileData?.is_admin === true) {
+      return {
+        route: 'profile',
+        query: { admin: 1 }
+      };
+    }
+  } catch {
+    return { route: 'draw' };
+  }
+
+  return { route: 'draw' };
+}
+
 async function handleNavbarAuthState() {
   const navbar = document.querySelector('.navbar');
   if (!navbar) return;
@@ -132,7 +158,7 @@ async function handleNavbarAuthState() {
           await signOut();
           showToast('Logged Out', 'You have been signed out.', 'success');
           setTimeout(() => {
-            window.location.href = '/';
+            navigateTo('home');
           }, 700);
         } catch (error) {
           showToast('Logout Failed', error.message || 'Could not sign out.', 'error');
@@ -173,7 +199,7 @@ async function handleNavbarAuthState() {
   }
 
   accountLinks.forEach((link) => {
-    link.setAttribute('href', '/profile.html');
+    link.setAttribute('href', getRouteUrl('profile'));
     const label = link.textContent?.trim().toLowerCase() || '';
     if (label.includes('sign up') || label.includes('create an account')) {
       link.textContent = 'My Profile';
@@ -201,12 +227,12 @@ async function handleNavbarAuthState() {
     if (!guestBadge.dataset.profileBound) {
       guestBadge.dataset.profileBound = '1';
       guestBadge.addEventListener('click', () => {
-        window.location.href = '/profile.html';
+        navigateTo('profile');
       });
       guestBadge.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          window.location.href = '/profile.html';
+          navigateTo('profile');
         }
       });
     }
@@ -236,10 +262,19 @@ function handleLoginForm() {
 
     try {
       setRememberMePreference(rememberMe);
-      await signInWithEmail({ email, password });
-      showToast('Login Successful', 'Welcome back! Redirecting to canvas...', 'success');
+      const signInData = await signInWithEmail({ email, password });
+      const signedInUser = signInData?.user || signInData?.session?.user || null;
+      const postLoginDestination = await resolvePostLoginRoute(signedInUser);
+
+      const isAdminRoute = postLoginDestination.route === 'profile' && postLoginDestination.query?.admin === 1;
+      showToast(
+        'Login Successful',
+        isAdminRoute ? 'Welcome back! Redirecting to admin dashboard...' : 'Welcome back! Redirecting to canvas...',
+        'success'
+      );
+
       setTimeout(() => {
-        window.location.href = '/draw.html';
+        navigateTo(postLoginDestination.route, { query: postLoginDestination.query });
       }, 900);
     } catch (error) {
       showToast('Login Failed', error.message || 'Invalid credentials.', 'error');
@@ -274,14 +309,14 @@ function handleRegisterForm() {
       if (data.session) {
         showToast('Account Created', 'Registration complete. Redirecting to canvas...', 'success');
         setTimeout(() => {
-          window.location.href = '/draw.html';
+          navigateTo('draw');
         }, 900);
         return;
       }
 
       showToast('Check Your Email', 'Your account was created. Verify your email, then log in.', 'info');
       setTimeout(() => {
-        window.location.href = '/login.html';
+        navigateTo('login');
       }, 1400);
     } catch (error) {
       showToast('Registration Failed', error.message || 'Unable to create account.', 'error');
@@ -289,9 +324,22 @@ function handleRegisterForm() {
   });
 }
 
+async function handleAuthPageGuards() {
+  const isLoginPage = Boolean(document.getElementById('loginForm'));
+  const isRegisterPage = Boolean(document.getElementById('registerForm'));
+  if (!isLoginPage && !isRegisterPage) return;
+
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const destination = await resolvePostLoginRoute(user);
+  navigateTo(destination.route, { query: destination.query, replace: true });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   handleLoginForm();
   handleRegisterForm();
+  await handleAuthPageGuards();
   await handleNavbarAuthState();
 
   if (supabase) {

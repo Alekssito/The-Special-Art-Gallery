@@ -1,3 +1,5 @@
+import { getRouteUrl, navigateTo } from '../../navigation.js';
+
 export function attachRenderingAndEvents(ctx) {
   const { ui, deps, params, state } = ctx;
   const {
@@ -29,7 +31,7 @@ export function attachRenderingAndEvents(ctx) {
 
     if (currentGalleryId && !selectedGallery) {
       showToast('Gallery Not Found', 'This gallery does not exist or you do not have access.', 'error');
-      window.location.href = '/profile.html';
+      navigateTo('profile');
       return;
     }
 
@@ -44,7 +46,7 @@ export function attachRenderingAndEvents(ctx) {
       if (createGalleryButton) createGalleryButton.classList.add('d-none');
       if (backToProfileButton) {
         backToProfileButton.classList.remove('d-none');
-        backToProfileButton.setAttribute('href', '/profile.html');
+        backToProfileButton.setAttribute('href', getRouteUrl('profile'));
         backToProfileButton.innerHTML = '<i class="bi bi-arrow-left-circle-fill me-1"></i> Back to Profile';
       }
       if (goToAdminDashboardButton) goToAdminDashboardButton.classList.add('d-none');
@@ -61,6 +63,7 @@ export function attachRenderingAndEvents(ctx) {
 
       if (goToAdminDashboardButton) {
         goToAdminDashboardButton.classList.toggle('d-none', !isAdmin || isAdminDashboardView);
+        goToAdminDashboardButton.setAttribute('href', getRouteUrl('profile', { query: { admin: 1 } }));
       }
 
       if (isAdminDashboardView && isAdmin) {
@@ -69,7 +72,7 @@ export function attachRenderingAndEvents(ctx) {
         if (createGalleryButton) createGalleryButton.classList.add('d-none');
         if (backToProfileButton) {
           backToProfileButton.classList.remove('d-none');
-          backToProfileButton.setAttribute('href', '/profile.html');
+          backToProfileButton.setAttribute('href', getRouteUrl('profile'));
           backToProfileButton.innerHTML = '<i class="bi bi-arrow-left-circle-fill me-1"></i> Back to Profile';
         }
         if (privacyToggle?.closest('.card')) privacyToggle.closest('.card').classList.add('d-none');

@@ -1,3 +1,5 @@
+import { getRouteUrl, navigateTo } from '../../navigation.js';
+
 export function attachGalleries(ctx) {
   const { ui, deps, params, state } = ctx;
   const {
@@ -239,7 +241,7 @@ export function attachGalleries(ctx) {
       await ctx.loadData();
 
       if (currentGalleryId === galleryId) {
-        window.location.href = '/profile.html';
+        navigateTo('profile');
         return;
       }
 
@@ -276,7 +278,7 @@ export function attachGalleries(ctx) {
               </h3>
               <p class="text-muted small mb-3">${drawingsCount} drawing${drawingsCount === 1 ? '' : 's'}</p>
               <div class="mt-auto d-flex gap-2 flex-wrap">
-                <a class="btn btn-sm btn-primary-custom flex-grow-1" href="/profile.html?gallery=${gallery.id}">
+                <a class="btn btn-sm btn-primary-custom flex-grow-1" href="${getRouteUrl('profile', { query: { gallery: gallery.id } })}">
                   <i class="bi bi-box-arrow-in-right me-1"></i> Enter
                 </a>
                 ${isSharedGallery ? `

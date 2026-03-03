@@ -1,3 +1,5 @@
+import { getRouteUrl } from '../navigation.js';
+
 export function createSaveGalleryChoicePrompt({ bootstrap, saveGalleryChoiceModalElement, saveGallerySelect, btnConfirmSaveChoice }) {
   const saveGalleryChoiceModal = saveGalleryChoiceModalElement
     ? bootstrap.Modal.getOrCreateInstance(saveGalleryChoiceModalElement)
@@ -60,7 +62,7 @@ export async function saveDrawingFromCanvas({
   if (!user) {
     showToast(
       'Account Required',
-      'Log in to save drawings to your account. <a href="/login.html" class="fw-bold text-decoration-underline" style="color: inherit;">Go to login</a>.',
+      `Log in to save drawings to your account. <a href="${getRouteUrl('login')}" class="fw-bold text-decoration-underline" style="color: inherit;">Go to login</a>.`,
       'info'
     );
     return;
