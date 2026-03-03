@@ -87,9 +87,9 @@ export function attachDrawings(ctx) {
               <div class="card-body d-flex flex-column">
                 <p class="text-muted small mb-3">Saved: ${createdAt}</p>
                 <div class="mt-auto d-flex gap-2 flex-wrap">
-                  <a href="${drawing.imageSrc}" download="drawing-${drawing.id}.png" class="btn btn-sm btn-secondary-custom flex-grow-1">
+                  <button class="btn btn-sm btn-secondary-custom flex-grow-1 btn-download-drawing" data-id="${drawing.id}" data-image-src="${drawing.imageSrc}">
                     <i class="bi bi-download me-1"></i> Download
-                  </a>
+                  </button>
                   ${canManageDrawing ? `
                   <a href="/draw.html?edit=${drawing.id}" class="btn btn-sm btn-primary-custom flex-grow-1">
                     <i class="bi bi-pencil-square me-1"></i> Edit
@@ -109,6 +109,33 @@ export function attachDrawings(ctx) {
         `;
       })
       .join('');
+
+    drawingsContainer.querySelectorAll('.btn-download-drawing').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const drawingId = button.getAttribute('data-id');
+        const imageSrc = button.getAttribute('data-image-src');
+        if (!drawingId || !imageSrc) return;
+
+        try {
+          const response = await fetch(imageSrc);
+          if (!response.ok) {
+            throw new Error('Could not fetch drawing image for download.');
+          }
+
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = `drawing-${drawingId}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(objectUrl);
+        } catch (downloadError) {
+          showToast('Download Failed', downloadError.message || 'Could not download drawing.', 'error');
+        }
+      });
+    });
 
     drawingsContainer.querySelectorAll('.btn-delete-drawing').forEach((button) => {
       button.addEventListener('click', async () => {
