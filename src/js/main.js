@@ -65,12 +65,50 @@ export function showToast(title, message, type = 'success') {
 // Make globally available for inline scripts if necessary
 window.showToast = showToast;
 
+function getPathnameFromLink(link) {
+  const href = link?.getAttribute('href') || '';
+  if (!href) return '';
+
+  try {
+    const url = new URL(href, window.location.origin);
+    const pathname = url.pathname.toLowerCase();
+    if (pathname.length > 1 && pathname.endsWith('/')) {
+      return pathname.slice(0, -1);
+    }
+    return pathname;
+  } catch {
+    return href.toLowerCase();
+  }
+}
+
+function isPathMatch(pathname, candidates) {
+  return candidates.includes(pathname);
+}
+
 async function handleNavbarAuthState() {
   const navbar = document.querySelector('.navbar');
   if (!navbar) return;
 
-  const loginLink = navbar.querySelector('a[href="/login.html"], a[href="login.html"]');
-  const accountLinks = document.querySelectorAll('a[href="/register.html"], a[href="register.html"]');
+  const navbarLinks = Array.from(navbar.querySelectorAll('a[href]'));
+  const allPageLinks = Array.from(document.querySelectorAll('a[href]'));
+
+  const loginLink = navbarLinks.find((link) => {
+    const pathname = getPathnameFromLink(link);
+    const label = link.textContent?.trim().toLowerCase() || '';
+    return isPathMatch(pathname, ['/login', '/login.html']) || label === 'login' || label === 'logout';
+  });
+
+  const accountLinks = allPageLinks.filter((link) => {
+    const pathname = getPathnameFromLink(link);
+    const label = link.textContent?.trim().toLowerCase() || '';
+    return (
+      isPathMatch(pathname, ['/register', '/register.html', '/profile', '/profile.html']) ||
+      label.includes('sign up') ||
+      label.includes('create an account') ||
+      label.includes('my profile')
+    );
+  });
+
   const guestBadge = navbar.querySelector('.badge');
 
   const user = await getCurrentUser();
@@ -160,15 +198,18 @@ async function handleNavbarAuthState() {
     guestBadge.setAttribute('title', 'Go to profile');
     guestBadge.setAttribute('role', 'link');
     guestBadge.setAttribute('tabindex', '0');
-    guestBadge.addEventListener('click', () => {
-      window.location.href = '/profile.html';
-    });
-    guestBadge.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
+    if (!guestBadge.dataset.profileBound) {
+      guestBadge.dataset.profileBound = '1';
+      guestBadge.addEventListener('click', () => {
         window.location.href = '/profile.html';
-      }
-    });
+      });
+      guestBadge.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          window.location.href = '/profile.html';
+        }
+      });
+    }
   }
 }
 
