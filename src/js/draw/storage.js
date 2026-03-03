@@ -52,7 +52,7 @@ export async function saveDrawingFromCanvas({
   promptGallerySaveChoice
 }) {
   if (!isSupabaseConfigured || !supabase) {
-    showToast('Supabase Not Configured', 'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY first.', 'error');
+    showToast('Supabase Not Configured', 'Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or VITE_SUPABASE_ANON_KEY) first.', 'error');
     return;
   }
 

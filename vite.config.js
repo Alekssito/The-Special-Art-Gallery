@@ -13,7 +13,8 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         draw: resolve(__dirname, 'draw.html'),
         login: resolve(__dirname, 'login.html'),
-        register: resolve(__dirname, 'register.html')
+        register: resolve(__dirname, 'register.html'),
+        profile: resolve(__dirname, 'profile.html')
       }
     }
   }
